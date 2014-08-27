@@ -532,7 +532,7 @@ public class MotionEditor : MonoBehaviour {
 		}
 		
 		getSheetData(filepath, SheetNames[selectSheet]);
-		showAddWindow = false;
+		showAddWindow = true;
 		old_selectCategory = 0;
 		showAddSelection = false;
 	}
