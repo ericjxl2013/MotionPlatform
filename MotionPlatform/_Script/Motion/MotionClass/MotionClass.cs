@@ -232,7 +232,7 @@ public class MotionClass : BaseCompute
 			}
 			return false;
 		}
-
+		simpleID.Add(simpleID.Count, id);
 		return true;
 	}
 
@@ -246,6 +246,7 @@ public class MotionClass : BaseCompute
 			return false;
 		}
 		_motionList.Add(cameraExcel);
+		simpleID.Add(simpleID.Count, id);
 		return true;
 	}
 
@@ -260,6 +261,7 @@ public class MotionClass : BaseCompute
 		}
 		_motionList.Add(tipsExcel);
 		_hasTipsMotion = tipsExcel;
+		simpleID.Add(simpleID.Count, id);
 		return true;
 	}
 
@@ -273,6 +275,7 @@ public class MotionClass : BaseCompute
 			return false;
 		}
 		_motionList.Add(maxExcel);
+		simpleID.Add(simpleID.Count, id);
 		return true;
 	}
 
@@ -280,7 +283,32 @@ public class MotionClass : BaseCompute
 	public bool ProgramAdd(DataRow program_row, string id, DataTable group_table)
 	{
 		ProgramInfoManager proMana = new ProgramInfoManager();
-		return proMana.ProgramInfoGet(program_row, id, group_table, _motionList, _complexMotionList);
+		bool resultFlag = proMana.ProgramInfoGet(program_row, id, group_table, _motionList, _complexMotionList);
+		if (resultFlag && MotionPara.isEditor)
+		{
+			string programID = ((string)program_row[2].ToString()).ToUpper();
+			if (programID == "TONGBANG")
+			{
+				//铜棒敲击
+				complexID.Add(complexID.Count, id);
+			}
+			else if (programID == "BAIFANG")
+			{
+				//物体摆放
+				complexID.Add(complexID.Count, id);
+			}
+			else if (programID == "NINGSONG")
+			{
+				//螺钉拧松拧紧
+				complexID.Add(complexID.Count, id);
+			}
+			else if (programID == "NINGCHU")
+			{
+				//螺钉拧进拧出
+				complexID.Add(complexID.Count, id);
+			}
+		}
+		return resultFlag;
 	}
 
 	//List Clear
@@ -289,6 +317,8 @@ public class MotionClass : BaseCompute
 		_motionList.Clear();
 		_complexMotionList.Clear();
 		_hasTipsMotion = null;
+		simpleID.Clear();
+		complexID.Clear();
 	}
 
 	//停止时的后处理
@@ -305,6 +335,24 @@ public class MotionClass : BaseCompute
 				_complexMotionList[i][j].PostProcess();
 			}
 		}
+	}
+
+	private Dictionary<int, string> simpleID = new Dictionary<int, string>();
+	private Dictionary<int, string> complexID = new Dictionary<int, string>();
+
+	//获得当前Motion运动ID
+	public string GetMotionID(string type_str, int index)
+	{
+		string idStr = "";
+		if (type_str.ToUpper() == "SIMPLE")
+		{
+			idStr = simpleID[index];
+		}
+		else 
+		{
+			idStr = complexID[index];
+		}
+		return idStr;
 	}
 }
 

@@ -165,7 +165,8 @@ public class CameraMotion : IMotion
 	//后处理，主要是位置修正
 	public void PostProcess()
 	{
-		if(CurrentMotion == CameraMotionType.Line){
+		if (CurrentMotion == CameraMotionType.Line || CurrentMotion == CameraMotionType.Circular)
+		{
 			CurrentCamera.transform.position = EndPos;
 			CurrentCamera.transform.LookAt(TargetTrans);
 		}
@@ -345,6 +346,14 @@ public class CameraInfoManager : BaseCompute
 				}
 				return _cameraMotion;
 			}
+			//终止信息记录
+			GameObject emptyCamera = new GameObject();
+			emptyCamera.name = "camera_empty-" + id;
+			emptyCamera.transform.position = _cameraMotion.StartPos;
+			emptyCamera.transform.eulerAngles = CameraMotion.CurrentCamera.transform.eulerAngles;
+			emptyCamera.transform.RotateAround(_cameraMotion.RotateCenter, _cameraMotion.RotateAxis, rotateDegree);
+			_cameraMotion.EndPos = emptyCamera.transform.position;
+			GameObject.DestroyImmediate(emptyCamera);
 			//时间
 			_cameraMotion.StandardTime = rotateDegree / _cameraMotion.RotateSpeed;
 		}else{  //直线过程
