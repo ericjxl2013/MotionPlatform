@@ -656,6 +656,23 @@ public class ProgramInfoManager : BaseCompute
 			}
 		}
 
+		//扳手移进时的坐标轴，如果要通用化，请修改这里
+		Vector3 moveVecUnit = new Vector3(-1.0f, 0f, 0f);
+		if (program_row.Table.Columns.Count > 11)
+		{
+			if ((string)program_row[11].ToString() != "")
+			{
+				moveVecUnit = Vector3Conversion((string)program_row[11].ToString(), ref isRight);
+				if (!isRight)
+				{
+					if (MotionPara.isEditor)
+					{
+						Debug.LogError(ErrorLocation.Locate("PROGRAM", "NSBANSHOU", id) + "，自定义扳手坐标轴填写有错误！");
+					}
+					return false;
+				}
+			}
+		}
 
 		//参考空物体
 		GameObject emptyRefer = new GameObject();
@@ -673,8 +690,7 @@ public class ProgramInfoManager : BaseCompute
 		_simpleMotion.ParentTrans = firstObj;
 		_simpleMotion.ListCopy(childList, parentList);
 			
-		//扳手移进时的坐标轴，如果要通用化，请修改这里
-		Vector3 moveVecUnit = new Vector3(-1.0f, 0f, 0f);
+		
 		//扳手拧一圈时移动的距离
 		float screwBack = (twistDegree / 30f) * MotionPara.screwBackRate;
 		Vector3 motionVec = moveVecUnit * disNS;
@@ -887,6 +903,25 @@ public class ProgramInfoManager : BaseCompute
 				}
 			}
 		}
+		//扳手移进时的坐标轴，如果要通用化，请修改这里
+		Vector3 moveVecUnit = new Vector3(0f, -1.0f, 0f);
+		if (program_row.Table.Columns.Count > 9)
+		{
+			if ((string)program_row[9].ToString() != "")
+			{
+				moveVecUnit = Vector3Conversion((string)program_row[9].ToString(), ref isRight);
+				if (!isRight)
+				{
+					if (MotionPara.isEditor)
+					{
+						Debug.LogError(ErrorLocation.Locate("PROGRAM", "NCBANSHOU", id) + "，自定义扳手坐标轴填写有错误！");
+					}
+					return false;
+				}
+			}
+		}
+
+
 		//参考空物体
 		GameObject emptyRefer = new GameObject();
 		emptyRefer.name = "NingChu_empty-" + id;
@@ -903,8 +938,7 @@ public class ProgramInfoManager : BaseCompute
 		_simpleMotion.ParentTrans = firstObj;
 		_simpleMotion.ListCopy(childList, parentList);
 			
-		//扳手移进时的坐标轴，如果要通用化，请修改这里
-		Vector3 moveVecUnit = new Vector3(0f, -1.0f, 0f);
+		
 		Vector3 motionVec = moveVecUnit * disNC;
 		emptyRefer.transform.Translate(motionVec, Space.Self);
 		_simpleMotion.EndPos = emptyRefer.transform.position;

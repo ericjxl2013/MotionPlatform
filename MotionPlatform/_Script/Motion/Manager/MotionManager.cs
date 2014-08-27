@@ -588,7 +588,7 @@ public class MotionManager : MonoBehaviour {
 					//自动生成Location等状态信息
 					if (createPosition){
 						if (j == 0){
-							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), true);
+							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), false);
 						}else{
 							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), false);
 						}

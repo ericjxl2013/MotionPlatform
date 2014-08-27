@@ -106,10 +106,10 @@ public class MotionEditor : MonoBehaviour {
 		maxCategory = new string[] {"不包含PC2的3dMax动画", "包含PC2的3dMax动画"};
 		programCategory = new string[] {"铜棒敲击", "部件摆放或工具移出", "螺钉拧松或拧紧", "螺钉拧出或拧进"};
 		programCategory_content = new string[,]{
-			{"运动物体组", "敲击次数", "铜棒离敲击点距离", "被敲击物体移动的方向,以Group第一个物体为参考", "铜棒敲击的速度,选填", "敲击一次前进距离,选填","", ""},
-			{"运动物体组", "参考物体", "相对坐标,工具移出不需要填", "相对角度,工具移出不需要填", "移动速度,选填", "自定义安全高度,绝对坐标", "", ""},
-			{"一起运动的组,扳手名称", "参考物体,所拧的螺钉", "拧的次数", "扳手与螺钉距离", "'0,0,1'表示拧松，逆时针;'0,0，-1'表示拧紧，顺时针", "拧的角度,填60或者120", "移动速度,选填", "扳手抬出位移,选填"},
-			{"一起运动的组,扳手名称", "参考物体,所拧的螺钉", "扳手与螺钉距离", "'0,0,1'表示拧松，逆时针;'0,0，-1'表示拧紧，顺时针", "螺钉所需拧出距离,用两点之差的向量表示", "移动速度,选填", "", ""}
+			{"运动物体组", "敲击次数", "铜棒离敲击点距离", "被敲击物体移动的方向,以Group第一个物体为参考", "铜棒敲击的速度,选填", "敲击一次前进距离,选填","", "", ""},
+			{"运动物体组", "参考物体", "相对坐标,工具移出不需要填", "相对角度,工具移出不需要填", "移动速度,选填", "自定义安全高度,绝对坐标", "", "", ""},
+			{"一起运动的组,扳手名称", "参考物体,所拧的螺钉", "拧的次数", "扳手与螺钉距离", "'0,0,1'表示拧松，逆时针;'0,0，-1'表示拧紧，顺时针", "拧的角度,填60或者120", "移动速度,选填", "扳手抬出位移,选填", "扳手移动轴默认-1,0,0,选填"},
+			{"一起运动的组,扳手名称", "参考物体,所拧的螺钉", "扳手与螺钉距离", "'0,0,1'表示拧松，逆时针;'0,0，-1'表示拧紧，顺时针", "螺钉所需拧出距离,用两点之差的向量表示", "移动速度,选填", "扳手移动轴默认0,-1,0,选填", "", ""}
 		};
 
 		tex_CloseButton = (Texture2D)Resources.Load("Texture/CustomMenu/关闭1");
@@ -147,7 +147,7 @@ public class MotionEditor : MonoBehaviour {
 			columnName = new string[]{"动画描述:0", "ID", "动画所在物体名称:2", "动画名字:3", "自定义动画播放时长设置:4(默认可不填)", "PC2动画的物体名", "PC2动画的起始帧", "PC2动画的结束帧"};
 		}
 		else if(sheetname == "PROGRAM"){
-			columnName = new string[]{"运动描述", "ID", "ProgramID", "第1个参数", "第2个参数", "第3个参数", "第4个参数", "第5个参数", "第6个参数", "第7个参数", "第8个参数"};
+			columnName = new string[]{"运动描述", "ID", "ProgramID", "第1个参数", "第2个参数", "第3个参数", "第4个参数", "第5个参数", "第6个参数", "第7个参数", "第8个参数", "第九个参数"};
 		}
 		else if(sheetname == "TRIGGER"){
 			columnName = new string[]{"触发描述:0", "ID", "触发类型标示符:2", "触发按钮:3", "触发物体:4"};
@@ -1162,21 +1162,25 @@ public class MotionEditor : MonoBehaviour {
 				}
 				else if(selectCategory == 2){
 					tmp_TextFields[2] = "NingSong";
+					tmp_TextFields[11] = "-1,0,0";
 				}
 				else if(selectCategory == 3){
 					tmp_TextFields[2] = "NingChu";
+					tmp_TextFields[9] = "0,-1,0";
 				}
 				//自动化生成数据
 				
 				if(selectCategory == 0){
 					selectToggles[9] = false;
 					selectToggles[10] = false;
+					selectToggles[11] = false;
 					
 					add_sheet_width = (10+ (sheet_columns-1)* btn_width+ btn_width) - ExcelAddWindow.width;
 				}
 				else if(selectCategory == 1){
 					selectToggles[9] = false;
 					selectToggles[10] = false;
+					selectToggles[11] = false;
 
 					add_sheet_width = (10+ (sheet_columns-2)* btn_width+ btn_width) - ExcelAddWindow.width;
 				}
@@ -1184,8 +1188,8 @@ public class MotionEditor : MonoBehaviour {
 					add_sheet_width = (10+ (sheet_columns)* btn_width+ btn_width) - ExcelAddWindow.width;
 				}
 				else if(selectCategory == 3){
-					selectToggles[9] = false;
 					selectToggles[10] = false;
+					selectToggles[11] = false;
 
 					add_sheet_width = (10+ (sheet_columns-1)* btn_width+ btn_width) - ExcelAddWindow.width;
 				}
@@ -1569,6 +1573,14 @@ public class MotionEditor : MonoBehaviour {
 		//当前获得焦点的控件
 		focusControl = GUI.GetNameOfFocusedControl();
 
+
+		//Ctrl
+		if(Input.GetKey(KeyCode.LeftControl)){
+			isControl = true;
+		}
+		if(Input.GetKeyUp(KeyCode.LeftControl)){
+			isControl = false;
+		}
 		//中键滚轮
 		if(Input.GetAxis("Mouse ScrollWheel") != 0 ){
 			if(!isControl && (sheet_height > 0)){
@@ -1596,16 +1608,6 @@ public class MotionEditor : MonoBehaviour {
 	void Update () {
 		if(Input.GetKeyDown(KeyCode.F1)){
 			show = true;
-		}
-
-		//Ctrl
-		if (Input.GetKeyDown(KeyCode.LeftControl))
-		{
-			isControl = true;
-		}
-		if (Input.GetKeyUp(KeyCode.LeftControl))
-		{
-			isControl = false;
 		}
 
 		//if(Input.GetKeyDown(KeyCode.T)){

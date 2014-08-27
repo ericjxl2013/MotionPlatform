@@ -26,6 +26,7 @@ public class LocationManager : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		//rootDirectory = Application.dataPath + "/Resources";
+		isJson = true;
 	}
 
 	//生成节点初始化表
