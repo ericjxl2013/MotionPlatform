@@ -196,37 +196,16 @@ public class MotionClass : BaseCompute
 			return false;
 		}
 		ExcelInfoManager excelMana = new ExcelInfoManager();
-		if(motionInt == 1){  //直线运动
-			BasicMotion moveExcel = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
+		if (motionInt == 1 || motionInt == 2 || motionInt == 3 || motionInt == 4 || motionInt == 5 || motionInt == 6)
+		{  //运动符合要求
+			BasicMotion excelMotion = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
 			if(!isRight){
 				return false;
 			}
-			_motionList.Add(moveExcel);
-		}else if(motionInt == 2){  //旋转运动
-			BasicMotion rotateExcel = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
-			if(!isRight){
-				return false;
-			}
-			_motionList.Add(rotateExcel);
-		}else if(motionInt == 3){  //直线+旋转
-			BasicMotion move_rotateExcel = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
-			if(!isRight){
-				return false;
-			}
-			_motionList.Add(move_rotateExcel);
-		}else if(motionInt == 4){  //任意移动
-			BasicMotion randomExcel = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
-			if(!isRight){
-				return false;
-			}
-			_motionList.Add(randomExcel);
-		}else if(motionInt == 5){  //直接设定位置
-			BasicMotion move_rotateExcel = excelMana.SimpleMotion(excel_row, id, group_table, ref isRight, motionInt);
-			if(!isRight){
-				return false;
-			}
-			_motionList.Add(move_rotateExcel);
-		}else{  //报错
+			_motionList.Add(excelMotion);
+		}
+		else
+		{  //报错
 			if(MotionPara.isEditor){
 				Debug.LogError(ErrorLocation.Locate("EXCEL", "MOTIONTYPE", id) + "，运动方式填写错误，暂时未包含该种运动方式！");
 			}

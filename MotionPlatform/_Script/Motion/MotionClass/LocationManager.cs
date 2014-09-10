@@ -441,7 +441,7 @@ public class LocationManager : MonoBehaviour {
 		string filePreName = nodeName.Substring(0, 1) + fileNum.ToString();
 		//Json处理类
 		JsonOperator jsonOp = new JsonOperator();
-		if (File.Exists(locationPath + subPath + filePreName + "Location.xls"))
+		if (File.Exists(locationPath + subPath + filePreName + "Location.json"))
 		{
 			DataTable posTable = jsonOp.JsonReader(locationPath + subPath + filePreName + "Location.json", "LOCATION" + column_name);
 			Transform objTransform = null;
@@ -471,7 +471,7 @@ public class LocationManager : MonoBehaviour {
 					return;
 				}
 			}
-			if (File.Exists(locationPath + subPath + filePreName + "Location.xls"))
+			if (File.Exists(locationPath + subPath + filePreName + "Location.json"))
 			{
 				DataTable speTable = jsonOp.JsonReader(locationPath + subPath + filePreName + "Location.json", "SPECIAL" + column_name);
 				string speName = "";
@@ -493,7 +493,7 @@ public class LocationManager : MonoBehaviour {
 		}
 		else
 		{
-			UnityEngine.Debug.LogError(locationPath + subPath + filePreName + "Location.xls，该文件不存在，请确认！");
+			UnityEngine.Debug.LogError(locationPath + subPath + filePreName + "Location.json，该文件不存在，请确认！");
 			return;
 		}
 	}
@@ -617,6 +617,7 @@ public class LocationManager : MonoBehaviour {
 			{
 				if (!tempCamera.enabled)
 					tempCamera.enabled = true;
+				CameraMotion.CurrentStr = spe_name;
 			}
 			else
 			{
