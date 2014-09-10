@@ -139,7 +139,7 @@ public class BaseCompute
 	}
 
 	//字符串转化为int
-	protected int IntConversion(string info, ref bool is_right)
+	public int IntConversion(string info, ref bool is_right)
 	{
 		int rInt = 0;
 		try{
@@ -150,8 +150,8 @@ public class BaseCompute
 		return rInt;
 	}
 
-	//角度值统一转化
-	protected Vector3 AngleConversion(Vector3 ori_vec)
+	//角度值统一转化，效果不好暂不用
+	private Vector3 AngleConversion(Vector3 ori_vec)
 	{
 		if(ori_vec.x < 0)
 			ori_vec.x += 360f;
@@ -162,7 +162,8 @@ public class BaseCompute
 		return ori_vec;
 	}
 
-	protected Vector3 AngleDiff(Vector3 ori_vec)
+	//角度值统一转化，效果不好暂不用
+	private Vector3 AngleDiff(Vector3 ori_vec)
 	{
 		if(ori_vec.x < -180f)
 			ori_vec.x += 360f;
@@ -177,6 +178,37 @@ public class BaseCompute
 		else if(ori_vec.z > 180f)
 			ori_vec.z = 360f - ori_vec.z;
 		return ori_vec;
+	}
+
+	//获取角度差值
+	public Vector3 GetAngleDiff(Vector3 start_angle, ref Vector3 end_angle)
+	{
+		end_angle.x = AngleClerp(start_angle.x, end_angle.x, 1f);
+		end_angle.y = AngleClerp(start_angle.y, end_angle.y, 1f);
+		end_angle.z = AngleClerp(start_angle.z, end_angle.z, 1f);
+		return end_angle - start_angle;
+	}
+
+	//角度修改使其符合实际（类似-90和270这种情况处理）
+	private float AngleClerp(float start, float end, float value)
+	{
+		float min = 0.0f;
+		float max = 360.0f;
+		float half = Mathf.Abs((max - min) / 2.0f);
+		float retval = 0.0f;
+		float diff = 0.0f;
+		if ((end - start) < -half)
+		{
+			diff = ((max - start) + end) * value;
+			retval = start + diff;
+		}
+		else if ((end - start) > half)
+		{
+			diff = -((max - end) + start) * value;
+			retval = start + diff;
+		}
+		else retval = start + (end - start) * value;
+		return retval;
 	}
 }
 

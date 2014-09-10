@@ -14,10 +14,11 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 
 //基本运动方式
 public enum MotionType {MoveOnly, AccelerateMove, RotateOnly, AccelerateRotate, MoveRotateSingle, MoveRotateEvery, 
-	WorldMove, RandomMotion, SetPos}
+	WorldMove, RandomMotion, SetPos, VisualPath}
 
 //基本运动类
 public class BasicMotion : IMotion
@@ -91,6 +92,15 @@ public class BasicMotion : IMotion
 
 	public bool IsActive = false;  //组合运动时的当前激活实例
 
+	public CRSpline crSpline = new CRSpline();  //CR样条
+	private int currentIndex = 0;  //当前二分法找到的参数序号
+	private float viewTimeRate = 0f;  //二分法找到的参数对应的时间
+	private float currentTimeRate = 0f;  //记录当前时间进程
+	public float startTimeRate = 0f;  //记录变速时的当前时间进程
+	private float restTime = 0f;  //剩余时间
+	private float postTime = 0f;  //已经过去的时间
+	private float lastFrameTime = 0f;  //记录上一帧时间
+
 	public BasicMotion()
 	{
 		ChildList = new List<Transform>();
@@ -115,6 +125,7 @@ public class BasicMotion : IMotion
 
 	public void Init()
 	{
+		restTime = EndTime;
 		//模型结构确定
 		if(CurrentMotion == MotionType.MoveRotateSingle || CurrentMotion == MotionType.MoveRotateEvery){  //平移+旋转
 			for(int i = 0; i < ChildList.Count; i++){
@@ -123,6 +134,16 @@ public class BasicMotion : IMotion
 		}else{
 			for(int i = 0; i < ChildList.Count; i++){
 				ChildList[i].parent = ParentTrans;
+			}
+			if (CurrentMotion == MotionType.VisualPath)
+			{
+				if (MotionPara.isEditor)  //显示绿线初始化
+				{
+					ParentTrans.gameObject.AddComponent<VisualUnit>();
+					VisualUnit st_VUnit = ParentTrans.gameObject.GetComponent<VisualUnit>();
+					st_VUnit.nodes = crSpline.controlPoints;
+					st_VUnit.isInitialized = true;
+				}
 			}
 		}
 	}
@@ -144,6 +165,8 @@ public class BasicMotion : IMotion
 				EndTime = SpeedRate * EndTime / current_rate;
 			}else{
 				//激活状态
+				startTimeRate = currentTimeRate;
+				postTime = current_time;
 				EndTime = current_time + (EndTime - current_time) * SpeedRate / current_rate;
 				if(CurrentMotion == MotionType.AccelerateMove){
 					StartPos = ParentTrans.localPosition;
@@ -152,6 +175,7 @@ public class BasicMotion : IMotion
 					StartPos = ParentTrans.position;
 					StartEurler = ParentTrans.eulerAngles;
 				}
+				restTime = (EndTime - postTime) / (1f - startTimeRate);
 				StartTime = current_time;
 			}
 		}
@@ -160,6 +184,14 @@ public class BasicMotion : IMotion
 	//通用运动驱动函数
 	public void Move(float current_time, float speed_rate, float delta_time)  //接口方法
 	{
+		if (TimeRate(current_time) > 1.001f || current_time > EndTime)
+		{
+			return;
+		}
+		else
+		{
+			lastFrameTime = current_time;
+		}
 		if(CurrentMotion == MotionType.MoveOnly){  
 			//匀速直线运动
 			ParentTrans.Translate(SpeedVector * delta_time * speed_rate, Space.Self);
@@ -192,14 +224,32 @@ public class BasicMotion : IMotion
 				ParentTrans.position = StartPos + SpeedVector * (current_time - StartTime) * speed_rate;
 			if(AngleVector != Vector3.zero)
 				ParentTrans.eulerAngles = StartEurler + AngleVector * (current_time - StartTime) * speed_rate;
+		}else if (CurrentMotion == MotionType.VisualPath){
+			//可视化路径移动
+			ParentTrans.position = crSpline.Interp(TimeRate(current_time));
+			ParentTrans.eulerAngles = crSpline.EulerAngleLerp(TimeRate(current_time), ref currentIndex, ref viewTimeRate);
 		}
+	}
+
+	//变速后的时间比率
+	private float TimeRate(float current_time)
+	{
+		currentTimeRate = startTimeRate + (current_time - postTime) / restTime;
+		return currentTimeRate;
 	}
 
 	//时间控制
 	public bool TimesUp(float current_time)
 	{
-		if(current_time > EndTime)
+		if(current_time > EndTime){
+			//Debug.Log("Excel: " + currentTimeRate + "---" + (EndTime - lastFrameTime));
+			if (EndTime - lastFrameTime > 0)  //最后没运行的时间修正
+			{
+				//Debug.Log("Excel: " + (EndTime - lastFrameTime));
+				TimeCorrection(EndTime - lastFrameTime, SpeedRate);
+			}
 			return true;
+		}
 		else
 			return false;
 	}
@@ -222,9 +272,74 @@ public class BasicMotion : IMotion
 			if(SpeedVector != Vector3.zero)
 				EmptyObj.transform.position = EndPos;
 		}
+		else if (CurrentMotion == MotionType.VisualPath) {
+			ParentTrans.position = crSpline.controlPoints[crSpline.controlPoints.Count - 1];
+			ParentTrans.eulerAngles = crSpline.rotationList[crSpline.rotationList.Count - 1];
+			if (MotionPara.isEditor)  //消除绿线初始化
+			{
+				Component.Destroy(ParentTrans.gameObject.GetComponent<VisualUnit>());
+			}
+		}
 		DetachChildren();
 		if(EmptyObj != null)
 			GameObject.DestroyImmediate(EmptyObj);
+	}
+
+	//最后没运行的时间修正
+	private void TimeCorrection(float delta_time, float speed_rate)
+	{
+		if (CurrentMotion == MotionType.MoveOnly)
+		{
+			//匀速直线运动
+			ParentTrans.Translate(SpeedVector * delta_time * speed_rate, Space.Self);
+		}
+		else if (CurrentMotion == MotionType.WorldMove)
+		{
+			//在世界坐标内移动
+			ParentTrans.Translate(SpeedVector * delta_time * speed_rate, Space.World);
+		}
+		else if (CurrentMotion == MotionType.AccelerateMove)
+		{
+			//匀加速直线运动 
+			ParentTrans.localPosition = StartPos + SpeedVector * (EndTime - StartTime) * speed_rate +
+				0.5f * AccelerateVec * ((EndTime - StartTime) * speed_rate) * ((EndTime - StartTime) * speed_rate);
+		}
+		else if (CurrentMotion == MotionType.RotateOnly)
+		{
+			//旋转运动
+			ParentTrans.RotateAround(RotateCenter, RotateAxis, RotateSpeed * delta_time * speed_rate);
+		}
+		else if (CurrentMotion == MotionType.MoveRotateSingle)
+		{
+			//平移+旋转，围绕某一个
+			if (SpeedVector != Vector3.zero)
+				EmptyObj.transform.Translate(SpeedVector * delta_time * SpeedRate, Space.World);
+			EmptyObj.transform.Rotate(RotateAxis * RotateSpeed * delta_time * SpeedRate, Space.Self);
+		}
+		else if (CurrentMotion == MotionType.MoveRotateEvery)
+		{
+			//平移+旋转，围绕各自
+			if (SpeedVector != Vector3.zero)
+				EmptyObj.transform.Translate(SpeedVector * delta_time * SpeedRate, Space.World);
+			for (int i = 0; i < ChildList.Count; i++)
+			{
+				ChildList[i].Rotate(RotateAxis * RotateSpeed * delta_time * SpeedRate, Space.Self);
+			}
+		}
+		else if (CurrentMotion == MotionType.RandomMotion)
+		{
+			//任意移动
+			if (SpeedVector != Vector3.zero)
+				ParentTrans.position = StartPos + SpeedVector * (EndTime - StartTime) * speed_rate;
+			if (AngleVector != Vector3.zero)
+				ParentTrans.eulerAngles = StartEurler + AngleVector * (EndTime - StartTime) * speed_rate;
+		}
+		else if (CurrentMotion == MotionType.VisualPath)
+		{
+			//可视化路径移动
+			ParentTrans.position = crSpline.Interp(TimeRate(EndTime));
+			ParentTrans.eulerAngles = crSpline.EulerAngleLerp(TimeRate(EndTime), ref currentIndex, ref viewTimeRate);
+		}
 	}
 
 	//解除之前建立的父子关系，恢复到初始状态
@@ -263,9 +378,12 @@ public class ExcelInfoManager : BaseCompute
 		}else if(motionInt == 4){
 			//任意移动
 			is_right = RandomMove(excel_row, id, group_table);
-		}else if(motionInt == 5){
+		}else if (motionInt == 5){
 			//直接设定位置
 			is_right = SetPos(excel_row, id, group_table);
+		}else if (motionInt == 6){
+			//可视化路径移动
+			is_right = VisualPathInfo(excel_row, id, group_table);
 		}
         
 		return _simpleMotion;
@@ -431,9 +549,14 @@ public class ExcelInfoManager : BaseCompute
 		}
 		//旋转角度
 		float rotateDegree = FloatConversion(excel_row[10].ToString(), ref isRight);
+		if (rotateDegree <= 0)
+		{
+			isRight = false;
+			Debug.LogError("旋转角度不能为负数！");
+		}
 		if(!isRight){
 			if(MotionPara.isEditor){
-				Debug.LogError(ErrorLocation.Locate("EXCEL", "DEGREE", id) + "，旋转速度格式填写错误！");
+				Debug.LogError(ErrorLocation.Locate("EXCEL", "DEGREE", id) + "，旋转角度格式填写错误！");
 			}
 			return false;
 		}
@@ -655,7 +778,7 @@ public class ExcelInfoManager : BaseCompute
 		}
 		//起始信息记录
 		_simpleMotion.StartPos = _simpleMotion.ParentTrans.position;
-		_simpleMotion.StartEurler = AngleConversion(_simpleMotion.ParentTrans.eulerAngles);
+		_simpleMotion.StartEurler = _simpleMotion.ParentTrans.eulerAngles;
 		//移动速度确定，如果有自定义移动速度
 		float customMoveSpeed = MotionPara.toolMoveSpeed;
 		string speedStr = (string)excel_row[5].ToString();
@@ -710,11 +833,11 @@ public class ExcelInfoManager : BaseCompute
 		empty.transform.localPosition = _simpleMotion.EndPos;
 		empty.transform.localEulerAngles = _simpleMotion.EndEurler;
 		_simpleMotion.EndPos = empty.transform.position;
-		_simpleMotion.EndEurler = AngleConversion(empty.transform.eulerAngles);
+		_simpleMotion.EndEurler = empty.transform.eulerAngles;
 		GameObject.DestroyImmediate(empty);
 		//时间计算
 		Vector3 motionVec = _simpleMotion.EndPos - _simpleMotion.StartPos;
-		Vector3 angleVec = AngleDiff(_simpleMotion.EndEurler - _simpleMotion.StartEurler);
+		Vector3 angleVec = GetAngleDiff(_simpleMotion.StartEurler, ref _simpleMotion.EndEurler);
 		float moveTime = 0;
 		float rotateTime = 0;
 		if(motionVec.magnitude != 0){
@@ -778,7 +901,7 @@ public class ExcelInfoManager : BaseCompute
 		}
 		//起始信息记录
 		_simpleMotion.StartPos = _simpleMotion.ParentTrans.position;
-		_simpleMotion.StartEurler = AngleConversion(_simpleMotion.ParentTrans.eulerAngles);
+		_simpleMotion.StartEurler = _simpleMotion.ParentTrans.eulerAngles;
 		//终止位置获取
 		_simpleMotion.EndPos = Vector3Conversion((string)excel_row[12].ToString(), ref isRight);
 		if(!isRight){
@@ -812,12 +935,237 @@ public class ExcelInfoManager : BaseCompute
 			empty.transform.localPosition = _simpleMotion.EndPos;
 			empty.transform.localEulerAngles = _simpleMotion.EndEurler;
 			_simpleMotion.EndPos = empty.transform.position;
-			_simpleMotion.EndEurler = AngleConversion(empty.transform.eulerAngles);
+			_simpleMotion.EndEurler = empty.transform.eulerAngles;
 			GameObject.DestroyImmediate(empty);
 		}
 		_simpleMotion.StandardTime = 0.05f;
 		_simpleMotion.EndTime = 0.05f;
 		return true;
+	}
+
+	//直接设定位置
+	private bool VisualPathInfo(DataRow excel_row, string id, DataTable group_table)
+	{
+		bool isRight = true;
+		//运动类型
+		_simpleMotion.CurrentMotion = MotionType.VisualPath;
+		//Group Column
+		int groupColumn = IntConversion((string)excel_row[2].ToString(), ref isRight) + 1;
+		if (!isRight)
+		{
+			if (MotionPara.isEditor)
+			{
+				Debug.LogError(ErrorLocation.Locate("EXCEL", "GROUP", id) + "，运动Group填写错误！");
+			}
+			return false;
+		}
+		//运动物体信息
+		string objName = "";
+		try
+		{
+			objName = (string)group_table.Rows[0][groupColumn].ToString();
+			_simpleMotion.ParentTrans = GameObject.Find(objName).transform;
+			for (int i = 1; i < group_table.Rows.Count; i++)
+			{
+				objName = (string)group_table.Rows[i][groupColumn].ToString();
+				if (objName == "")
+					break;
+				Transform tempTrans = GameObject.Find(objName).transform;
+				_simpleMotion.ChildList.Add(tempTrans);
+				_simpleMotion.ParentList.Add(tempTrans.parent);
+			}
+		}
+		catch
+		{
+			if (MotionPara.isEditor)
+			{
+				Debug.LogError(ErrorLocation.Locate("EXCEL", "GROUP", id) + "，Group号对应的Group表填写有错误！");
+			}
+			return false;
+		}
+		//移动速度确定，如果有自定义移动速度
+		float customMoveSpeed = MotionPara.toolMoveSpeed;
+		string speedStr = (string)excel_row[5].ToString();
+		if (speedStr != "")
+		{
+			customMoveSpeed = FloatConversion(speedStr, ref isRight);
+			if (!isRight)
+			{
+				if (MotionPara.isEditor)
+				{
+					Debug.LogError(ErrorLocation.Locate("EXCEL", "MOVESPEED", id) + "，移动速度格式填写错误！");
+				}
+				return false;
+			}
+		}
+		//路径信息加载
+		string pathName = (string)excel_row[4].ToString();
+		JsonLoad(pathName, _simpleMotion.crSpline, ref isRight, _simpleMotion.ParentTrans);
+		if (!isRight)
+		{
+			if (MotionPara.isEditor)
+			{
+				Debug.LogError(ErrorLocation.Locate("EXCEL", "PATHNAME", id) + "，可视化路径名称填写错误！");
+			}
+			return false;
+		}
+		//起始信息记录
+		_simpleMotion.StartPos = _simpleMotion.crSpline.controlPoints[0];
+		_simpleMotion.StartEurler = _simpleMotion.crSpline.rotationList[0];
+		//终止位置获取
+		string endPosStr = (string)excel_row[12].ToString();
+		if(endPosStr == "")
+		{
+			_simpleMotion.EndPos = _simpleMotion.crSpline.controlPoints[_simpleMotion.crSpline.controlPoints.Count - 1];
+		}
+		else
+		{
+			_simpleMotion.EndPos = Vector3Conversion(endPosStr, ref isRight);
+			if (!isRight)
+			{
+				if (MotionPara.isEditor)
+				{
+					Debug.LogError(ErrorLocation.Locate("EXCEL", "POSITION", id) + "，参考位置填写错误！");
+				}
+				return false;
+			}
+		}
+		//终止角度获取
+		string endEulerStr = (string)excel_row[13].ToString();
+		if (endEulerStr == "")
+		{
+			_simpleMotion.EndEurler = _simpleMotion.crSpline.rotationList[_simpleMotion.crSpline.rotationList.Count - 1];
+		}
+		else
+		{
+			_simpleMotion.EndEurler = Vector3Conversion(endEulerStr, ref isRight);
+			if (!isRight)
+			{
+				if (MotionPara.isEditor)
+				{
+					Debug.LogError(ErrorLocation.Locate("EXCEL", "EURLER", id) + "，参考角度填写错误！");
+				}
+				return false;
+			}
+		}
+		//参考物体
+		string refStr = ((string)excel_row[11].ToString()).ToUpper();
+		if (refStr != "" && refStr != "WORLD" && (endEulerStr != "" || endPosStr != ""))
+		{
+			GameObject empty = new GameObject();
+			empty.name = "random_move_empty-" + id;
+			Transform finalTrans;
+			try
+			{
+				finalTrans = GameObject.Find((string)excel_row[11].ToString()).transform;
+			}
+			catch
+			{
+				if (MotionPara.isEditor)
+				{
+					Debug.LogError(ErrorLocation.Locate("EXCEL", "REFER", id) + "，参考物体填写错误！");
+				}
+				return false;
+			}
+			empty.transform.parent = finalTrans;
+			empty.transform.localPosition = _simpleMotion.EndPos;
+			empty.transform.localEulerAngles = _simpleMotion.EndEurler;
+			if (endPosStr != "")
+			{
+				_simpleMotion.EndPos = empty.transform.position;
+				_simpleMotion.crSpline.controlPoints[_simpleMotion.crSpline.controlPoints.Count - 1] = empty.transform.position;
+			}
+			if (endEulerStr != "") 
+			{
+				_simpleMotion.EndEurler = empty.transform.eulerAngles;
+				_simpleMotion.crSpline.rotationList[_simpleMotion.crSpline.rotationList.Count - 1] = empty.transform.eulerAngles;
+			}
+			GameObject.DestroyImmediate(empty);
+		}
+			AngleOptimization(_simpleMotion.crSpline.rotationList);
+		_simpleMotion.crSpline.pts = _simpleMotion.crSpline.PathControlPointGenerator(_simpleMotion.crSpline.controlPoints.ToArray());
+		_simpleMotion.StandardTime = _simpleMotion.crSpline.TimeGet(_simpleMotion.crSpline.pts, customMoveSpeed);
+		_simpleMotion.crSpline.TimeRateGenerator(_simpleMotion.crSpline.rotationList.Count);
+		_simpleMotion.EndTime = _simpleMotion.StandardTime / _simpleMotion.SpeedRate;
+		return true;
+	}
+
+	//Json文件加载
+	private void JsonLoad(string path_name, CRSpline crSpline, ref bool is_right, Transform parent_trans)
+	{
+		string filePath = MotionPara.taskRootPath + MotionPara.taskName + "/PathControl.json";
+		if (File.Exists(filePath))
+		{
+			JsonOperator jsonOp = new JsonOperator();
+			DataTable jsonTable = jsonOp.JsonReader(filePath, path_name);
+			if (jsonTable == null)
+			{
+				Debug.LogError(path_name + ", 该路径名称不存在！");
+				return;
+			}
+			GameObject loadEmpty = new GameObject();
+			loadEmpty.name = "JsonLoad_empty";
+			loadEmpty.transform.parent = parent_trans;
+			for (int i = 0; i < jsonTable.Rows.Count; i++)
+			{
+				loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
+				loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
+				crSpline.controlPoints.Add(loadEmpty.transform.position);
+				crSpline.rotationList.Add(loadEmpty.transform.eulerAngles);
+				crSpline.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
+			}
+			GameObject.DestroyImmediate(loadEmpty);
+		}
+		else
+		{
+			Debug.LogError(filePath + ", 该文件不存在！");
+		}
+	}
+
+	//string to vector3
+	private Vector3 ConvertToVector3(string vec_string)
+	{
+		string[] stringArray = vec_string.Split(',');
+		Vector3 rVec = Vector3.zero;
+		rVec.x = float.Parse(stringArray[0]);
+		rVec.y = float.Parse(stringArray[1]);
+		rVec.z = float.Parse(stringArray[2]);
+		return rVec;
+	}
+
+	//角度值优化，因为角度非常不确定，在类似90和-270之间
+	private void AngleOptimization(List<Vector3> rotation_list)
+	{
+		for (int i = 1; i < rotation_list.Count; i++)
+		{
+			Vector3 tempVec = rotation_list[i];
+			tempVec.x = AngleClerp(rotation_list[i - 1].x, rotation_list[i].x, 1f);
+			tempVec.y = AngleClerp(rotation_list[i - 1].y, rotation_list[i].y, 1f);
+			tempVec.z = AngleClerp(rotation_list[i - 1].z, rotation_list[i].z, 1f);
+			rotation_list[i] = tempVec;
+		}
+	}
+
+	//角度修改使其符合实际（类似-90和270这种情况处理）
+	private float AngleClerp(float start, float end, float value)
+	{
+		float min = 0.0f;
+		float max = 360.0f;
+		float half = Mathf.Abs((max - min) / 2.0f);
+		float retval = 0.0f;
+		float diff = 0.0f;
+		if ((end - start) < -half)
+		{
+			diff = ((max - start) + end) * value;
+			retval = start + diff;
+		}
+		else if ((end - start) > half)
+		{
+			diff = -((max - end) + start) * value;
+			retval = start + diff;
+		}
+		else retval = start + (end - start) * value;
+		return retval;
 	}
 
 }

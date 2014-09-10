@@ -14,8 +14,9 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 
-public enum CameraMotionType {Line, Circular}
+public enum CameraMotionType {Line, Circular, VisualPath}
 
 //摄像机运动类
 public class CameraMotion : IMotion
@@ -103,15 +104,42 @@ public class CameraMotion : IMotion
 	public float EndSize = 0f;
 	public float SizeSpeed = 0f;
 
+	public bool needExcess = false;  //是否需要过渡
+	public bool needSetPos = false;  //是否需要设置初始位置
+    public CRSpline crSpline = new CRSpline();  //CR样条
+    public Vector3[] diffVector = new Vector3[] { Vector3.zero, Vector3.zero };  //角度过度
+    private int currentIndex = 0;  //当前二分法找到的参数序号
+    private float viewTimeRate = 0f;  //二分法找到的参数对应的时间
+    private float currentTimeRate = 0f;  //记录当前时间进程
+    public float startTimeRate = 0f;  //记录变速时的当前时间进程
+    private float restTime = 0f;  //剩余时间
+    private float postTime = 0f;  //已经过去的时间
+	private float lastFrameTime = 0f;  //记录上一帧时间
+
 	//结构初始化
 	public void Init()
 	{
+        restTime = EndTime;
 		if(NeedChange){
 			if(FormerCamera != null){
 				FormerCamera.enabled = false;
 			}
 			CurrentCamera.enabled = true;
 		}
+		if (needSetPos)
+		{
+			CurrentCamera.transform.position = StartPos;
+		}
+        if (CurrentMotion == CameraMotionType.VisualPath)
+        {
+            if (MotionPara.isEditor)  //显示绿线初始化
+            {
+                CurrentCamera.gameObject.AddComponent<VisualUnit>();
+                VisualUnit st_VUnit = CurrentCamera.gameObject.GetComponent<VisualUnit>();
+                st_VUnit.nodes = crSpline.controlPoints;
+                st_VUnit.isInitialized = true;
+            }
+        }
 	}
 
 	//暂停控制
@@ -128,10 +156,13 @@ public class CameraMotion : IMotion
 			EndTime = SpeedRate * EndTime / current_rate;
 		}else{
 			//激活状态
+            startTimeRate = currentTimeRate;
+            postTime = current_time;
 			EndTime = current_time + (EndTime - current_time) * SpeedRate / current_rate;
+            restTime = (EndTime - postTime) / (1f - startTimeRate);
 			if(CurrentMotion == CameraMotionType.Line){
 				StartPos = CurrentCamera.transform.position;
-				CurrentCamera.transform.LookAt(TargetTrans);
+                //CurrentCamera.transform.LookAt(TargetTrans);
 			}
 			if(HasSizeChange){
 				StartSize = GetCameraPortValue();
@@ -143,21 +174,89 @@ public class CameraMotion : IMotion
 	//运动
 	public void Move(float current_time, float speed_rate, float delta_time)
 	{
-		if(CurrentMotion == CameraMotionType.Line){
-			CurrentCamera.transform.position = StartPos + SpeedVector * (current_time - StartTime) * speed_rate;
-		}else{
-			CurrentCamera.transform.RotateAround(RotateCenter, RotateAxis, RotateSpeed * delta_time * speed_rate);
+		if (TimeRate(current_time) > 1.001f || current_time > EndTime)
+		{
+			return;
 		}
-		if(HasSizeChange)
-			SetCameraPortValue(StartSize + SizeSpeed * (current_time - StartTime) * speed_rate);
-		CurrentCamera.transform.LookAt(TargetTrans);
+		else
+		{
+			lastFrameTime = current_time;
+		}
+		if(CurrentMotion == CameraMotionType.Line){  //直线
+			CurrentCamera.transform.position = StartPos + SpeedVector * (current_time - StartTime) * speed_rate;
+            if (HasSizeChange)
+                SetCameraPortValue(StartSize + SizeSpeed * (current_time - StartTime) * speed_rate);
+            if (needExcess)
+            {
+                if (TimeRate(current_time) <= 0.1f)
+                {
+                    CurrentCamera.transform.eulerAngles = Vector3.Lerp(diffVector[0], diffVector[1], TimeRate(current_time) * 10f);
+                }
+                else
+                {
+                    CurrentCamera.transform.LookAt(TargetTrans);
+                }
+            }
+            else
+            {
+                CurrentCamera.transform.LookAt(TargetTrans);
+            }
+        }
+        else if (CurrentMotion == CameraMotionType.Circular)  //圆弧
+        {
+            CurrentCamera.transform.RotateAround(RotateCenter, RotateAxis, RotateSpeed * delta_time * speed_rate);
+            if (HasSizeChange)
+                SetCameraPortValue(StartSize + SizeSpeed * (current_time - StartTime) * speed_rate);
+            CurrentCamera.transform.LookAt(TargetTrans);
+        }
+        else  //可视化路径运动
+        {
+            CurrentCamera.transform.position = crSpline.Interp(TimeRate(current_time));
+            if (TargetTrans != null)
+            {
+                if (needExcess)
+                {
+                    if (TimeRate(current_time) <= 0.1f)
+                    {
+                        CurrentCamera.transform.eulerAngles = Vector3.Lerp(diffVector[0], diffVector[1], TimeRate(current_time) * 10f);
+                    }
+                    else
+                    {
+                        CurrentCamera.transform.LookAt(TargetTrans);
+                    }
+                }
+                else
+                {
+                    CurrentCamera.transform.LookAt(TargetTrans);
+                }
+				SetCameraPortValue(crSpline.ViewLerp(TimeRate(current_time)));
+            }
+            else
+            {
+                CurrentCamera.transform.eulerAngles = crSpline.EulerAngleLerp(TimeRate(current_time), ref currentIndex, ref viewTimeRate);
+                //二分法查找算一次
+                SetCameraPortValue(Mathf.Lerp(crSpline.cameraViewList[currentIndex], crSpline.cameraViewList[currentIndex + 1], viewTimeRate));
+            }
+        }
 	}
+
+    //变速后的时间比率
+    private float TimeRate(float current_time)
+    {
+        currentTimeRate = startTimeRate + (current_time - postTime) / restTime;
+        return currentTimeRate;
+    }
 
 	//时间管理
 	public bool TimesUp(float current_time)
 	{
-		if(current_time > EndTime)
+		if(current_time > EndTime){
+			if (EndTime - lastFrameTime > 0)  //最后没运行的时间修正
+			{
+				TimeCorrection(EndTime - lastFrameTime, SpeedRate);
+			}
 			return true;
+		}
 		else
 			return false;
 	}
@@ -165,13 +264,92 @@ public class CameraMotion : IMotion
 	//后处理，主要是位置修正
 	public void PostProcess()
 	{
-		if (CurrentMotion == CameraMotionType.Line || CurrentMotion == CameraMotionType.Circular)
+        if (CurrentMotion == CameraMotionType.Line || CurrentMotion == CameraMotionType.Circular)
+        {
+            CurrentCamera.transform.position = EndPos;
+            CurrentCamera.transform.LookAt(TargetTrans);
+            if (HasSizeChange)
+                SetCameraPortValue(EndSize);
+        }
+        else
+        {
+            if (MotionPara.isEditor)  //消除绿线初始化
+            {
+                Component.Destroy(CurrentCamera.gameObject.GetComponent<VisualUnit>());
+            }
+			CurrentCamera.transform.position = crSpline.controlPoints[crSpline.controlPoints.Count - 1];
+			SetCameraPortValue(crSpline.cameraViewList[crSpline.cameraViewList.Count - 1]);
+			if (TargetTrans != null)
+			{
+				CurrentCamera.transform.LookAt(TargetTrans);
+			}
+			else
+			{
+				CurrentCamera.transform.eulerAngles = crSpline.rotationList[crSpline.rotationList.Count - 1];
+			}
+        }
+	}
+
+	//最后没运行的时间修正
+	private void TimeCorrection(float delta_time, float speed_rate)
+	{
+		if (CurrentMotion == CameraMotionType.Line)
+		{  //直线
+			CurrentCamera.transform.position = StartPos + SpeedVector * (EndTime - StartTime) * speed_rate;
+			if (HasSizeChange)
+				SetCameraPortValue(StartSize + SizeSpeed * (EndTime - StartTime) * speed_rate);
+			if (needExcess)
+			{
+				if (TimeRate(EndTime) <= 0.1f)
+				{
+					CurrentCamera.transform.eulerAngles = Vector3.Lerp(diffVector[0], diffVector[1], TimeRate(EndTime) * 10f);
+				}
+				else
+				{
+					CurrentCamera.transform.LookAt(TargetTrans);
+				}
+			}
+			else
+			{
+				CurrentCamera.transform.LookAt(TargetTrans);
+			}
+		}
+		else if (CurrentMotion == CameraMotionType.Circular)  //圆弧
 		{
-			CurrentCamera.transform.position = EndPos;
+			CurrentCamera.transform.RotateAround(RotateCenter, RotateAxis, RotateSpeed * delta_time * speed_rate);
+			if (HasSizeChange)
+				SetCameraPortValue(StartSize + SizeSpeed * (EndTime - StartTime) * speed_rate);
 			CurrentCamera.transform.LookAt(TargetTrans);
 		}
-		if(HasSizeChange)
-			SetCameraPortValue(EndSize);
+		else  //可视化路径运动
+		{
+			CurrentCamera.transform.position = crSpline.Interp(TimeRate(EndTime));
+			if (TargetTrans != null)
+			{
+				if (needExcess)
+				{
+					if (TimeRate(EndTime) <= 0.1f)
+					{
+						CurrentCamera.transform.eulerAngles = Vector3.Lerp(diffVector[0], diffVector[1], TimeRate(EndTime) * 10f);
+					}
+					else
+					{
+						CurrentCamera.transform.LookAt(TargetTrans);
+					}
+				}
+				else
+				{
+					CurrentCamera.transform.LookAt(TargetTrans);
+				}
+				SetCameraPortValue(crSpline.ViewLerp(TimeRate(EndTime)));
+			}
+			else
+			{
+				CurrentCamera.transform.eulerAngles = crSpline.EulerAngleLerp(TimeRate(EndTime), ref currentIndex, ref viewTimeRate);
+				//二分法查找算一次
+				SetCameraPortValue(Mathf.Lerp(crSpline.cameraViewList[currentIndex], crSpline.cameraViewList[currentIndex + 1], viewTimeRate));
+			}
+		}
 	}
 
 	//摄像机视域信息获取
@@ -191,6 +369,12 @@ public class CameraMotion : IMotion
 		else
 			CurrentCamera.orthographicSize = value;
 	}
+
+    //直线上的点
+    public Vector3 LineInterp(float rate)
+    {
+        return Vector3.Lerp(StartPos, EndPos, rate);
+    }
 }
 
 //Camera表格动画信息处理类
@@ -217,25 +401,16 @@ public class CameraInfoManager : BaseCompute
 			}
 			return _cameraMotion;
 		}
-		//观察中心物体处理
-		try{
-			CameraMotion.TargetTrans = GameObject.Find((string)camera_row[3].ToString()).transform;
-		}catch{
-			is_right = false;
-			//摄像机名称出错
-			if(MotionPara.isEditor){
-				Debug.LogError(ErrorLocation.Locate("CAMERA", "OBSERVER", id) + "，观察物体填写错误！");
-			}
-			return _cameraMotion;
-		}
-		//圆弧运动和直线运动确定，圆弧优先级高于直线，根据【旋转参考物体:9】是否有填来确定
-		bool isCircularMotion = false;
+		//圆弧运动、直线和路径运动确定，圆弧优先级高于其他，根据【旋转参考物体:9】是否有填来确定
 		string rotateRefStr = (string)camera_row[9].ToString();
-		if(rotateRefStr == ""){  //直线运动
-			isCircularMotion = false;
-			_cameraMotion.CurrentMotion = CameraMotionType.Line;
+        string pathName = "";
+		if(rotateRefStr == ""){  
+            pathName = (string)camera_row[14].ToString();
+            if(pathName == "")
+                _cameraMotion.CurrentMotion = CameraMotionType.Line;  //直线运动
+            else
+                _cameraMotion.CurrentMotion = CameraMotionType.VisualPath;  //可视化路径运动
 		}else{  //圆弧运动
-			isCircularMotion = true;
 			_cameraMotion.CurrentMotion = CameraMotionType.Circular;
 			try{
 				_cameraMotion.RotateCenter = GameObject.Find(rotateRefStr).transform.position;
@@ -247,23 +422,49 @@ public class CameraInfoManager : BaseCompute
 				return _cameraMotion;
 			}
 		}
+        //观察中心物体处理
+        string targetTransStr = (string)camera_row[3].ToString();
+        if (targetTransStr != "")
+        {
+            try
+            {
+                CameraMotion.TargetTrans = GameObject.Find(targetTransStr).transform;
+            }
+            catch
+            {
+                is_right = false;
+                //摄像机名称出错
+                if (MotionPara.isEditor)
+                {
+                    Debug.LogError(ErrorLocation.Locate("CAMERA", "OBSERVER", id) + "，观察物体填写错误！");
+                }
+                return _cameraMotion;
+            }
+        }
+        else
+        {
+            if (_cameraMotion.CurrentMotion != CameraMotionType.VisualPath)
+            {
+                is_right = false;
+                //摄像机名称出错
+                if (MotionPara.isEditor)
+                {
+                    Debug.LogError(ErrorLocation.Locate("CAMERA", "OBSERVER", id) + "，直线和圆弧模式下必须有观察物体！");
+                }
+                return _cameraMotion; 
+            }
+        }
 		//起始位置确定
 		bool isRelativePos = false;  //用于目标位置确定
 		string relativeRefStr = (string)camera_row[4].ToString();
 		string startPosStr = (string)camera_row[5].ToString();
+        string endPosStr = (string)camera_row[6].ToString();
 		GameObject empty = new GameObject();
 		empty.name = "camera_motion_empty-" + id;
 		Transform relativeTrans = null;
 		if(startPosStr == ""){
-			if(isCircularMotion){
-				is_right = false;
-				if(MotionPara.isEditor){
-					Debug.LogError(ErrorLocation.Locate("CAMERA", "SPOSITION", id) + "，摄像机圆弧运动一定要设定起始位置！");
-				}
-				return _cameraMotion;
-			}else{
-				_cameraMotion.StartPos = CameraMotion.CurrentCamera.transform.position;
-			}
+			_cameraMotion.StartPos = CameraMotion.CurrentCamera.transform.position;
+			_cameraMotion.needSetPos = false;
 		}else{
 			//默认为世界坐标位置
 			_cameraMotion.StartPos = Vector3Conversion(startPosStr, ref is_right);
@@ -289,6 +490,10 @@ public class CameraInfoManager : BaseCompute
 				_cameraMotion.StartPos = empty.transform.position;
 				empty.transform.parent = null;
 			}
+			if ((_cameraMotion.StartPos - CameraMotion.CurrentCamera.transform.position).magnitude > 0.01f)
+				_cameraMotion.needSetPos = true;
+			else
+				_cameraMotion.needSetPos = false;
 		}
 		//视域缩放参数确定
 		string endSizeStr = (string)camera_row[8].ToString();
@@ -316,8 +521,8 @@ public class CameraInfoManager : BaseCompute
 				}
 			}	
 		}
-		//直线和旋转分别处理
-		if(isCircularMotion){  //圆弧过程
+		//直线、可视化路径、旋转运动分别处理
+		if(_cameraMotion.CurrentMotion == CameraMotionType.Circular){  //圆弧过程
 			//旋转速度获取
 			_cameraMotion.RotateSpeed = MotionPara.cameraAngleSpeed;
 			string customRotStr = (string)camera_row[13].ToString();
@@ -346,6 +551,7 @@ public class CameraInfoManager : BaseCompute
 				}
 				return _cameraMotion;
 			}
+			_cameraMotion.RotateAxis = GameObject.Find(rotateRefStr).transform.TransformDirection(_cameraMotion.RotateAxis);
 			//终止信息记录
 			GameObject emptyCamera = new GameObject();
 			emptyCamera.name = "camera_empty-" + id;
@@ -356,9 +562,9 @@ public class CameraInfoManager : BaseCompute
 			GameObject.DestroyImmediate(emptyCamera);
 			//时间
 			_cameraMotion.StandardTime = rotateDegree / _cameraMotion.RotateSpeed;
-		}else{  //直线过程
-			//旋转速度获取
-			float moveSpeed = MotionPara.cameraAngleSpeed;
+		}else{  
+			//直线速度获取
+			float moveSpeed = MotionPara.cameraLineSpeed;
 			string customMoveStr = (string)camera_row[12].ToString();
 			if(customMoveStr != ""){
 				moveSpeed = FloatConversion(customMoveStr, ref is_right);
@@ -369,27 +575,61 @@ public class CameraInfoManager : BaseCompute
 					return _cameraMotion;
 				}
 			}
-			//默认为世界坐标位置
-			_cameraMotion.EndPos = Vector3Conversion((string)camera_row[6].ToString(), ref is_right);
-			if(!is_right){
-				if(MotionPara.isEditor){
-					Debug.LogError(ErrorLocation.Locate("CAMERA", "APOSITION", id) + "，摄像机目标位置错误，直线时必须填！");
-				}
-				return _cameraMotion;
-			}
-			//是相对位置
-			if(isRelativePos){
-				empty.transform.parent = relativeTrans;
-				empty.transform.localPosition = _cameraMotion.EndPos;
-				_cameraMotion.EndPos = empty.transform.position;
-				empty.transform.parent = null;
-			}
-			//运动向量
-			Vector3 motionVec = _cameraMotion.EndPos - _cameraMotion.StartPos;
-			//时间
-			_cameraMotion.StandardTime = motionVec.magnitude / moveSpeed;
-			//线速度
-			_cameraMotion.SpeedVector = motionVec / _cameraMotion.StandardTime;
+            if (endPosStr == "" && _cameraMotion.CurrentMotion == CameraMotionType.VisualPath)
+            {
+                //Do nothing
+            }
+            else
+            {
+                //默认为世界坐标位置
+                _cameraMotion.EndPos = Vector3Conversion(endPosStr, ref is_right);
+                if (!is_right)
+                {
+                    if (MotionPara.isEditor)
+                    {
+                        Debug.LogError(ErrorLocation.Locate("CAMERA", "APOSITION", id) + "，摄像机目标位置错误，直线时必须填！");
+                    }
+                    return _cameraMotion;
+                }
+                //是相对位置
+                if (isRelativePos)
+                {
+                    empty.transform.parent = relativeTrans;
+                    empty.transform.localPosition = _cameraMotion.EndPos;
+                    _cameraMotion.EndPos = empty.transform.position;
+                    empty.transform.parent = null;
+                }
+            
+            }
+            if (_cameraMotion.CurrentMotion == CameraMotionType.VisualPath)  //可视化路径运动
+            {
+                JsonLoad(pathName, _cameraMotion.crSpline, ref is_right);
+                if (!is_right)
+                {
+                    if (MotionPara.isEditor)
+                    {
+                        Debug.LogError(ErrorLocation.Locate("CAMERA", "PATHNAME", id) + "，摄像机可视化路径名称填写错误！");
+                    }
+                    return _cameraMotion;
+                }
+                if (startPosStr != "")
+                    _cameraMotion.crSpline.controlPoints[0] = _cameraMotion.StartPos;
+                if (endPosStr != "")
+                    _cameraMotion.crSpline.controlPoints[_cameraMotion.crSpline.controlPoints.Count - 1] = _cameraMotion.EndPos;
+                AngleOptimization(_cameraMotion.crSpline.rotationList);
+                _cameraMotion.crSpline.pts = _cameraMotion.crSpline.PathControlPointGenerator(_cameraMotion.crSpline.controlPoints.ToArray());
+                _cameraMotion.StandardTime = _cameraMotion.crSpline.TimeGet(_cameraMotion.crSpline.pts, moveSpeed);
+                _cameraMotion.crSpline.TimeRateGenerator(_cameraMotion.crSpline.rotationList.Count);
+            }
+            else  //直线运动过程
+            {
+                //运动向量
+                Vector3 motionVec = _cameraMotion.EndPos - _cameraMotion.StartPos;
+                //时间
+                _cameraMotion.StandardTime = motionVec.magnitude / moveSpeed;
+                //线速度
+                _cameraMotion.SpeedVector = motionVec / _cameraMotion.StandardTime;
+            }
 		}
 		if(_cameraMotion.StandardTime == 0){
 			is_right = false;
@@ -402,6 +642,34 @@ public class CameraInfoManager : BaseCompute
 			_cameraMotion.SizeSpeed = (_cameraMotion.EndSize - _cameraMotion.StartSize) / _cameraMotion.StandardTime;
 		}
 		_cameraMotion.EndTime = _cameraMotion.StandardTime / _cameraMotion.SpeedRate;
+		//判断摄像机是否需要过渡
+		if (CameraMotion.TargetTrans != null && _cameraMotion.CurrentMotion != CameraMotionType.Circular && !_cameraMotion.needSetPos)
+		{
+			_cameraMotion.diffVector[0] = CameraMotion.CurrentCamera.transform.eulerAngles;
+			if (_cameraMotion.CurrentMotion == CameraMotionType.Line)
+			{
+				empty.transform.position = _cameraMotion.LineInterp(0.1f);
+			}
+			else
+			{
+				empty.transform.position = _cameraMotion.crSpline.Interp(0.1f);
+			}
+			empty.transform.LookAt(CameraMotion.TargetTrans);
+			_cameraMotion.diffVector[1] = empty.transform.eulerAngles;
+			_cameraMotion.diffVector[1] = new Vector3(AngleClerp(_cameraMotion.diffVector[0].x, _cameraMotion.diffVector[1].x, 1f), AngleClerp(_cameraMotion.diffVector[0].y, _cameraMotion.diffVector[1].y, 1f), AngleClerp(_cameraMotion.diffVector[0].z, _cameraMotion.diffVector[1].z, 1f));
+			if ((_cameraMotion.diffVector[1] - _cameraMotion.diffVector[0]).magnitude > 0.1f)
+			{
+				_cameraMotion.needExcess = true;
+			}
+			else
+			{
+				_cameraMotion.needExcess = false;
+			}
+		}
+		else
+		{
+			_cameraMotion.needExcess = false;
+		}
 		GameObject.DestroyImmediate(empty);
 		return _cameraMotion;
 	}
@@ -443,4 +711,82 @@ public class CameraInfoManager : BaseCompute
 		return true;
 	}
 
+
+    //Json文件加载
+    private void JsonLoad(string path_name, CRSpline crSpline, ref bool is_right)
+    {
+        string filePath = MotionPara.taskRootPath + MotionPara.taskName + "/PathControl.json";
+        if (File.Exists(filePath))
+        {
+            JsonOperator jsonOp = new JsonOperator();
+            DataTable jsonTable = jsonOp.JsonReader(filePath, path_name);
+            if (jsonTable == null)
+            {
+                Debug.LogError(path_name + ", 该路径名称不存在！");
+                return;
+            }
+            GameObject loadEmpty = new GameObject();
+            loadEmpty.name = "JsonLoad_empty";
+            loadEmpty.transform.parent = CameraMotion.CurrentCamera.transform;
+            for (int i = 0; i < jsonTable.Rows.Count; i++)
+            {
+                loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
+                loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
+                crSpline.controlPoints.Add(loadEmpty.transform.position);
+                crSpline.rotationList.Add(loadEmpty.transform.eulerAngles);
+                crSpline.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
+            }
+            GameObject.DestroyImmediate(loadEmpty);
+        }
+        else
+        {
+            Debug.LogError(filePath + ", 该文件不存在！");
+        }
+    }
+
+    //string to vector3
+    private Vector3 ConvertToVector3(string vec_string)
+    {
+        string[] stringArray = vec_string.Split(',');
+        Vector3 rVec = Vector3.zero;
+        rVec.x = float.Parse(stringArray[0]);
+        rVec.y = float.Parse(stringArray[1]);
+        rVec.z = float.Parse(stringArray[2]);
+        return rVec;
+    }
+
+    //角度值优化，因为角度非常不确定，在类似90和-270之间
+    private void AngleOptimization(List<Vector3> rotation_list)
+    {
+        for (int i = 1; i < rotation_list.Count; i++)
+        {
+            Vector3 tempVec = rotation_list[i];
+            tempVec.x = AngleClerp(rotation_list[i - 1].x, rotation_list[i].x, 1f);
+            tempVec.y = AngleClerp(rotation_list[i - 1].y, rotation_list[i].y, 1f);
+            tempVec.z = AngleClerp(rotation_list[i - 1].z, rotation_list[i].z, 1f);
+            rotation_list[i] = tempVec;
+        }
+    }
+
+    //角度修改使其符合实际（类似-90和270这种情况处理）
+    private float AngleClerp(float start, float end, float value)
+    {
+        float min = 0.0f;
+        float max = 360.0f;
+        float half = Mathf.Abs((max - min) / 2.0f);
+        float retval = 0.0f;
+        float diff = 0.0f;
+        if ((end - start) < -half)
+        {
+            diff = ((max - start) + end) * value;
+            retval = start + diff;
+        }
+        else if ((end - start) > half)
+        {
+            diff = -((max - end) + start) * value;
+            retval = start + diff;
+        }
+        else retval = start + (end - start) * value;
+        return retval;
+    }
 }

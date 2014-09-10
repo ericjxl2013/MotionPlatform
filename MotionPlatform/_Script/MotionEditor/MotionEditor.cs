@@ -251,8 +251,8 @@ public class MotionEditor : MonoBehaviour {
 	//显示当前sheet中数据
 	void showSheet(string filepath,string sheetname){
 		if(old_selectSheet != selectSheet){
-			getSheetData(filepath, sheetname);
 			showAddWindow = false;
+			getSheetData(filepath, sheetname);
 			old_selectCategory = 0;
 
 			showAddSelection = false;
@@ -273,7 +273,7 @@ public class MotionEditor : MonoBehaviour {
 		}
 		sheet_height = (60+ sheet_rows* btn_height+ btn_height+ 60) - ExcelWriteWindow.height;
 		if(addMain1){
-			float sheet_height_2 = (60+ addMainRow* btn_height+ 3*btn_height+ 30) - ExcelWriteWindow.height;
+			float sheet_height_2 = (60+ addMainRow* btn_height+ 4*btn_height+ 30) - ExcelWriteWindow.height;
 			if(sheet_height_2 > sheet_height){
 				sheet_height = sheet_height_2;
 			}
@@ -360,6 +360,11 @@ public class MotionEditor : MonoBehaviour {
 			if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (2+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"Motions")){
 				addMain2 = true;
 			}
+			if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (3+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"Trigger")){
+				addAction("TRIGGER", 5, addMainRow);
+				addMain1 = false;
+				addMain2 = false;
+			}
 
 			if(addMain2){
 				if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ 2*btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (2+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"Camera")){
@@ -437,8 +442,7 @@ public class MotionEditor : MonoBehaviour {
 			}
 			
 			//跳转表格
-			selectSheet = 1;				
-			
+			selectSheet = 1;	
 		}
 		else if(column == 3 && actionName == "TIPS"){
 			
@@ -516,19 +520,57 @@ public class MotionEditor : MonoBehaviour {
 			if(actionName == "CAMERA"){
 				selectSheet = 1;
 			}
-			if(actionName == "TIPS"){
+			else if(actionName == "TIPS"){
 				selectSheet = 2;
 			}
-			if(actionName == "EXCEL"){
+			else if(actionName == "EXCEL"){
 				selectSheet = 3;
 			}
-			if(actionName == "3DMAX"){
+			else if(actionName == "3DMAX"){
 				selectSheet = 4;
 			}
-			if(actionName == "PROGRAM"){
+			else if(actionName == "PROGRAM"){
 				selectSheet = 5;
 			}
+		}
+		else if(column == 5 && actionName == "TRIGGER"){
+			//添加数据
+			if(row == sheet_rows){
+				//自动化生成数据:ID,
+				tmp_TextFields[key] = (sheet_rows+2).ToString();
+				//自动化生成数据
+				
+				//获得actionName的新ID
+				ExcelOperator excelReader = new ExcelOperator();
+				sheetTable = excelReader.ExcelReader(filepath + ".xls", actionName);
+				tmp_TextFields[column] = actionName+ "@"+ (sheetTable.Rows.Count+2).ToString();
+				
+				//添加数据
+				addData(filepath, SheetNames[selectSheet], tmp_TextFields);
+			}
+			//插入数据
+			else{
+				for(int i=0; i<sheet_columns; i++){
+					tmp_TextFields[i] = contents[row, i];
+				}
+
+				//获得actionName的新ID
+				ExcelOperator excelReader = new ExcelOperator();
+				sheetTable = excelReader.ExcelReader(filepath + ".xls", actionName);
+				string actName = actionName+ "@"+ (sheetTable.Rows.Count+2).ToString();
+				if(tmp_TextFields[column] == ""){
+					tmp_TextFields[column] = actName;
+				}
+				else{					
+					tmp_TextFields[column] += "|"+actName;
+				}
+				
+				//更新数据
+				updateData(filepath, SheetNames[selectSheet], tmp_TextFields);
+			}
 			
+			//跳转表格
+			selectSheet = 6;
 		}
 		
 		getSheetData(filepath, SheetNames[selectSheet]);

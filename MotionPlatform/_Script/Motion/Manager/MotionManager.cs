@@ -93,6 +93,7 @@ public class MotionManager : MonoBehaviour {
 	private float currentTime = 0f;  //当前行的时间，进度条修正
 	[HideInInspector]
 	public float preProcess = 0f;  //按下鼠标前的进度
+	private float maxProcess = 0f;  //当前行最大进度值
 
 	//TEST PARAMETER
 	//private Rect testRect = new Rect(50, 50, 360, 350);
@@ -305,26 +306,26 @@ public class MotionManager : MonoBehaviour {
 		if(speed_flag){
 			if(MotionPara.SpeedRate >= 0.99f && MotionPara.SpeedRate < 3.9f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.5f, 1);
+                if (cameraAdministrator.State == CurrentState.Active)
+                    cameraAdministrator.ChangeRate(setRate, startTime);
 				motionAdministrator.ChangeRate(setRate, startTime);
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
 			}else if(MotionPara.SpeedRate >= 0.49f && MotionPara.SpeedRate < 1.0f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.1f, 1);
+                if (cameraAdministrator.State == CurrentState.Active)
+                    cameraAdministrator.ChangeRate(setRate, startTime);
 				motionAdministrator.ChangeRate(setRate, startTime);
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
 			}
 		}else{  //减速
 			if(MotionPara.SpeedRate > 1.01f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.5f, 1);
+                if (cameraAdministrator.State == CurrentState.Active)
+                    cameraAdministrator.ChangeRate(setRate, startTime);
 				motionAdministrator.ChangeRate(setRate, startTime);
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
 			}else if(MotionPara.SpeedRate <= 1.01f && MotionPara.SpeedRate > 0.51f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.1f, 1);
+                if (cameraAdministrator.State == CurrentState.Active)
+                    cameraAdministrator.ChangeRate(setRate, startTime);
 				motionAdministrator.ChangeRate(setRate, startTime);
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
 			}
 		}
 	}
@@ -332,9 +333,9 @@ public class MotionManager : MonoBehaviour {
 	//设置播放速率
 	public void ChangeRate(float set_rate)
 	{
-		motionAdministrator.ChangeRate(set_rate, startTime);
 		if (cameraAdministrator.State == CurrentState.Active)
 			cameraAdministrator.ChangeRate(set_rate, startTime);
+		motionAdministrator.ChangeRate(set_rate, startTime);
 	}
 
 	//单步播放按钮
@@ -347,20 +348,24 @@ public class MotionManager : MonoBehaviour {
 	//播放过程停止
 	public void StopButton()
 	{
-		//Camera
-		cameraFlag = false;
 		MotionPara.MotionActive = false;
-		cameraAdministrator.State = CurrentState.Old;
-		if (cameraFlag) {
+
+		//Camera
+		if (cameraFlag){
 			cameraAdministrator.PostProcess();
 		}
+		cameraFlag = false;
+		cameraAdministrator.State = CurrentState.Old;
+		
 		//Trigger
 		MotionPara.triggerPlay = false;
 		st_Trigger.gameObject.SetActive(false);
 		BtnFunction.AllForbit();
+
 		//Tips
 		st_Interface.TipsWindow(false, "", false);
 		st_Interface.Voice("");
+
 		//General
 		if (generMotionFlag) {
 			motionAdministrator.PostProcess();
@@ -584,6 +589,17 @@ public class MotionManager : MonoBehaviour {
 					}
 				}
 				for(int j = row_number; j < motionDataSet.Tables["[MAIN$]"].Rows.Count; j++){
+					if (isTimeLoad)  //进度条时间修订值
+					{
+						try
+						{
+							maxProcess = (currentTime + float.Parse((string)motionDataSet.Tables["[MAIN$]"].Rows[j][6].ToString())) * perTime;
+						}
+						catch
+						{
+							Debug.LogError("时间信息可能为空，位置：" + ErrorLocation.Locate("MAIN", "TIME", MotionPara.mainRowNumber));
+						}
+					}
 					rowNum = (j + 2).ToString();
 					//自动生成Location等状态信息
 					if (createPosition){
@@ -716,14 +732,7 @@ public class MotionManager : MonoBehaviour {
 					//修正时间设定
 					if (isTimeLoad && !computeTime)
 					{
-						try
-						{
-							hSliderValue = (currentTime + float.Parse((string)motionDataSet.Tables["[MAIN$]"].Rows[j][6].ToString())) * perTime;
-						}
-						catch 
-						{
-							Debug.LogError("时间信息可能为空，位置：" + ErrorLocation.Locate("MAIN", "TIME", MotionPara.mainRowNumber));
-						}
+						hSliderValue = maxProcess;
 					}
 				}
 				//row参数清零
@@ -762,6 +771,7 @@ public class MotionManager : MonoBehaviour {
 				ewo.UpdateData(MotionPara.dataRootPath + "CID", "ID", contents, 0);
 			}
         }
+		st_Interface.TipsWindow(false, "", false);
 		computeTime = false;
 		yield return null;
 	}
@@ -1237,17 +1247,6 @@ public class MotionManager : MonoBehaviour {
 	// Update is called once per frame
 	void Update () 
 	{
-		/*//TEST, TO START
-		if(Input.GetKeyUp(KeyCode.Space)){
-			StartCoroutine(MainEntrance(0, 0));
-			MotionPara.shouldStop = false;
-		}
-
-		//TEST, TO PAUSE
-		if(Input.GetKeyUp(KeyCode.P)){
-			MotionPara.PauseControl = !MotionPara.PauseControl;
-		}*/
-
 		//Time Control
 		if (MotionPara.MotionActive && !MotionPara.PauseControl)
 		{
@@ -1256,6 +1255,7 @@ public class MotionManager : MonoBehaviour {
 		if (isTimeLoad && MotionPara.MotionActive && !MotionPara.PauseControl)
 		{
 			hSliderValue += Time.deltaTime * perTime * MotionPara.SpeedRate;
+			hSliderValue = Mathf.Min(hSliderValue, maxProcess);
 		}
 
 		//综合运动控制
