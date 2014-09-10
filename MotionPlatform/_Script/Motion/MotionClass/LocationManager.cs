@@ -617,7 +617,8 @@ public class LocationManager : MonoBehaviour {
 			{
 				if (!tempCamera.enabled)
 					tempCamera.enabled = true;
-				CameraMotion.CurrentStr = spe_name;
+				if(CameraMotion.CurrentCamera != null)
+					CameraMotion.CurrentStr = spe_name;
 			}
 			else
 			{
