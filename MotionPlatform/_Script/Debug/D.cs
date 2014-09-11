@@ -64,7 +64,6 @@ public class D
 			Debug.LogError (format);
 	}
 	
-	[System.Diagnostics.Conditional("DEBUG_LEVEL_ERROR")]
 	public static void Error (object format, params object[] paramList)
 	{
 		Debug.LogError (format);
