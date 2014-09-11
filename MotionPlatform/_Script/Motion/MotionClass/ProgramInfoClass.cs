@@ -500,7 +500,7 @@ public class ProgramInfoManager : BaseCompute
 		float moveTime = 0;
 		float rotateTime = 0;
 		moveTime = motionVec.magnitude / moveSpeed;
-		Vector3 angleDiff = GetAngleDiff(_simpleMotion.StartEurler, ref _simpleMotion.EndEurler);
+		Vector3 angleDiff = GetAngleDiff(_simpleMotion2.StartEurler, ref _simpleMotion2.EndEurler);
 		rotateTime = Vector3.Angle(_simpleMotion2.StartEurler, _simpleMotion2.EndEurler) / MotionPara.toolRotateSpeed;
 		if(moveTime == 0 && rotateTime == 0){
 			_simpleMotion2.StandardTime = 0.05f;
