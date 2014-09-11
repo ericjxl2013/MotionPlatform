@@ -447,7 +447,7 @@ public class EditorManager : MonoBehaviour {
 			}
 			if (toInsert)
 			{
-				excelOp.AddData(Application.dataPath + "/Resources/" + MotionPara.taskName + st_Manager.subTablePath + st_Manager.IDTableName, "ID", new string[] { newExcelName, "Description", ""});
+				excelOp.AddData(Application.dataPath + "/Resources/" + MotionPara.taskName + st_Manager.subTablePath + st_Manager.IDTableName, "ID", new string[] { newExcelName, "Description", "100"});
 			}
 		}
 	}
