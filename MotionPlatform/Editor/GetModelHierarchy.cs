@@ -113,7 +113,7 @@ public class GetModelHierarchy : EditorWindow {
 		}
 		ExcelOperator excelReader = new ExcelOperator();
 		DataTable setData = excelReader.ExcelReader(Application.dataPath + "/_TempExcel/" + 
-			excelName + ".xls", "SelectionsName", "A", "B");
+			excelName + ".xls", "Name", "A", "B");
 		string tempName = "";
 		string tempParent = "";
 		Transform transChild;
