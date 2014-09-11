@@ -13,6 +13,7 @@ public struct TriggerUnit
     public string[] TriggerOjb;
     public string[] TriggerKey;
 	public List<string> BtnFuncList;
+	public float TriggerLongPress;
 
 	//public TriggerUnit(int id, TriggerType[] trigger_type, string[] trigger_obj, string[] trigger_key)
 	//{
@@ -186,6 +187,7 @@ public class TriggerManager : MonoBehaviour {
 			if (trigger_unit.TriggerType[1] == TriggerType.MouseDown) {
 				if (Input.GetMouseButton(btn1) && Input.GetMouseButtonDown(btn2))
 				{
+					Debug.Log(btn1+ ","+ btn2+ "鼠标组合键触发 Oh Yeah");
 					MouseEvent(trigger_unit);
 				}
 			}
@@ -194,6 +196,7 @@ public class TriggerManager : MonoBehaviour {
 			{
 				if (Input.GetMouseButton(btn1) && Input.GetMouseButtonUp(btn2))
 				{
+					Debug.Log(btn1+ ","+ btn2+ "鼠标组合键触发 Oh Yeah");
 					MouseEvent(trigger_unit);
 				}
 			}	
@@ -204,6 +207,7 @@ public class TriggerManager : MonoBehaviour {
 			//第二个按键按下
 			if (trigger_unit.TriggerType[1] == TriggerType.KeyDown) {
 				if (Input.GetKey(trigger_unit.TriggerKey[0].ToLower()) && Input.GetKeyDown(trigger_unit.TriggerKey[1].ToLower())) {
+					Debug.Log(trigger_unit.TriggerKey[0]+ ","+ trigger_unit.TriggerKey[1]+ "键盘组合键触发 Oh Yeah");
 					KeyboardEvent(trigger_unit);
 				}
 			}
@@ -212,6 +216,7 @@ public class TriggerManager : MonoBehaviour {
 			{
 				if (Input.GetKey(trigger_unit.TriggerKey[0].ToLower()) && Input.GetKeyUp(trigger_unit.TriggerKey[1].ToLower()))
 				{
+					Debug.Log(trigger_unit.TriggerKey[0]+ ","+ trigger_unit.TriggerKey[1]+ "键盘组合键触发 Oh Yeah");
 					KeyboardEvent(trigger_unit);
 				}
 			}
@@ -288,12 +293,24 @@ public class TriggerManager : MonoBehaviour {
 					{
 						Debug.Log(btn_string.ToUpper() + "按钮触发成功!");
 						//触发成功
-						MotionPara.triggerPlay = false;
+						if(triggerUnitList[0].TriggerLongPress == -1){//点击
+							MotionPara.triggerPlay = false;
+						}
+						else{//长按
+							Vector3 dis = (GameObject.Find("Cube_2").transform.position-GameObject.Find("Cube_1").transform.position);
+							Debug.Log("dis:"+dis.magnitude);
+							if(PanelButton.DetectionLongPress(btn_string, triggerUnitList[0].TriggerLongPress)){
+								MotionPara.triggerPlay = false;
+							}
+						}
+
 					}
 				}
 			}
 		}
 	}
+
+
 
     //可扩展触发
     public static void OtherTriggerEvent()

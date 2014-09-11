@@ -24,6 +24,8 @@ public class MotionManager : MonoBehaviour {
 	InterfaceManager st_Interface;
 	LocationManager st_Location;
 	TriggerManager st_Trigger;
+	//鼠标贴图移动
+	public CursorMove st_CursorMove;
 
 	//当前项目名称
 	public string taskName = "3_33";
@@ -58,6 +60,8 @@ public class MotionManager : MonoBehaviour {
 	private CameraMotion cameraAdministrator = new CameraMotion();
 	//Tips信息存储
 	private TipsMotion tipsAdministrator = new TipsMotion();
+	//CursorMOve信息存储
+	private CursorMotion cursormoveAdministrator = new CursorMotion();
 	//运动控制类
 	private MotionClass motionAdministrator = new MotionClass();
 
@@ -93,10 +97,9 @@ public class MotionManager : MonoBehaviour {
 	private float currentTime = 0f;  //当前行的时间，进度条修正
 	[HideInInspector]
 	public float preProcess = 0f;  //按下鼠标前的进度
-	private float maxProcess = 0f;  //当前行最大进度值
 
 	//TEST PARAMETER
-	//private Rect testRect = new Rect(50, 50, 360, 350);
+	private Rect testRect = new Rect(50, 50, 360, 350);
 	private bool isTeaching = true;
 	private string teaBtnStr = "教";
     
@@ -104,12 +107,16 @@ public class MotionManager : MonoBehaviour {
 	public bool computeTime = false;
 	private float cameraTime = 0f;
 	private float tipsTime = 0f;
+	private float cursorTime = 0f;
 	private float motionsTime = 0f;
 	private float addMotionTime = 0f;
 	private int maxNumber = 0;
 	private float cTime = 0f;
-	
 
+	//测试：生成装配表数据
+	public bool generateZData = false;
+	string zn = "";
+	
 	void Awake ()
 	{
 		//编辑模式
@@ -141,6 +148,14 @@ public class MotionManager : MonoBehaviour {
 			gameObject.AddComponent<EditorManager>();
 		}
 
+
+		//鼠标贴图移动
+		gameObject.AddComponent<CursorMove>();
+		st_CursorMove = gameObject.GetComponent<CursorMove>();
+
+		PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
+		PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
+		PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
 	}
 
 	// Use this for initialization
@@ -152,11 +167,10 @@ public class MotionManager : MonoBehaviour {
 
 	void OnGUI ()
 	{
-		//testRect = GUI.Window(110, testRect, TestWindow, "");
+		testRect = GUI.Window(110, testRect, TestWindow, "");
 		// Event guiEvent = Event.current;
 		// Debug.Log(guiEvent.type.ToString());
 	}
-
 
 	void TestWindow(int WindowID){
 		//播放
@@ -216,12 +230,20 @@ public class MotionManager : MonoBehaviour {
 		if (GUI.Button(new Rect(310, 60, 50, 50), "Test01") && BtnFunction.Allow("TEST01"))
 		{
 			TriggerManager.GUIButtonEvent("TEST01");
+			PanelButton.Btn_Function("TEST01");
 		}
 
 		//测试按钮2
-		if (GUI.Button(new Rect(310, 120, 50, 50), "Test02") && BtnFunction.Allow("TEST02"))
+		if (GUI.RepeatButton(new Rect(310, 120, 50, 50), "Test02") && BtnFunction.Allow("TEST02"))
 		{
 			TriggerManager.GUIButtonEvent("TEST02");
+			PanelButton.Btn_Function("TEST02");
+		}
+		//测试按钮3
+		if (GUI.RepeatButton(new Rect(310, 180, 50, 50), "Test03") && BtnFunction.Allow("TEST03"))
+		{
+			TriggerManager.GUIButtonEvent("TEST03");
+			PanelButton.Btn_Function("TEST03");
 		}
 
 		GUI.skin.label.normal.textColor = Color.white;
@@ -229,16 +251,16 @@ public class MotionManager : MonoBehaviour {
 
 		GUI.Label(new Rect(190, 80, 50, 50), "当前速率: " + MotionPara.SpeedRate.ToString());
 
-		hSliderValue = GUI.HorizontalSlider(sliderRect, hSliderValue, 0.0f, TotalValue);
-		//获得鼠标按下
-		if (sliderRect.Contains(Event.current.mousePosition))
-		{
-			if (Input.GetMouseButtonDown(0) && !dragLock && !dragActive) 
-			{
-				dragActive = true;
-				preProcess = hSliderValue;
-			}
-		}
+//		hSliderValue = GUI.HorizontalSlider(sliderRect, hSliderValue, 0.0f, TotalValue);
+//		//获得鼠标按下
+//		if (sliderRect.Contains(Event.current.mousePosition))
+//		{
+//			if (Input.GetMouseButtonDown(0) && !dragLock && !dragActive) 
+//			{
+//				dragActive = true;
+//				preProcess = hSliderValue;
+//			}
+//		}
 
 		GUI.contentColor = Color.green;
 		timeDisplayToggle = GUI.Toggle(new Rect(50, 170, 100, 20), timeDisplayToggle, timeDisplayStr);
@@ -271,7 +293,9 @@ public class MotionManager : MonoBehaviour {
 			st_Location.LocationSet(setNode, "0");
 		}
 
-		GUI.DragWindow();
+		if(FuncPara.currentMotion != MotionState.Teaching){
+			GUI.DragWindow();
+		}
 	}
 
 	//播放按钮
@@ -296,6 +320,8 @@ public class MotionManager : MonoBehaviour {
 	//暂停按钮
 	public void PauseButton()
 	{
+
+
 		motionAdministrator.Pause(!MotionPara.PauseControl);
 	}
 
@@ -306,26 +332,46 @@ public class MotionManager : MonoBehaviour {
 		if(speed_flag){
 			if(MotionPara.SpeedRate >= 0.99f && MotionPara.SpeedRate < 3.9f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.5f, 1);
-                if (cameraAdministrator.State == CurrentState.Active)
-                    cameraAdministrator.ChangeRate(setRate, startTime);
+
+				//鼠标动画
+				cursormoveAdministrator.ChangeRate(setRate, startTime);
+				//
 				motionAdministrator.ChangeRate(setRate, startTime);
+
+				if(cameraAdministrator.State == CurrentState.Active)
+					cameraAdministrator.ChangeRate(setRate, startTime);
 			}else if(MotionPara.SpeedRate >= 0.49f && MotionPara.SpeedRate < 1.0f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.1f, 1);
-                if (cameraAdministrator.State == CurrentState.Active)
-                    cameraAdministrator.ChangeRate(setRate, startTime);
+
+				//鼠标动画
+				cursormoveAdministrator.ChangeRate(setRate, startTime);
+				//
 				motionAdministrator.ChangeRate(setRate, startTime);
+
+				if(cameraAdministrator.State == CurrentState.Active)
+					cameraAdministrator.ChangeRate(setRate, startTime);
 			}
 		}else{  //减速
 			if(MotionPara.SpeedRate > 1.01f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.5f, 1);
-                if (cameraAdministrator.State == CurrentState.Active)
-                    cameraAdministrator.ChangeRate(setRate, startTime);
+
+				//鼠标动画
+				cursormoveAdministrator.ChangeRate(setRate, startTime);
+				//
 				motionAdministrator.ChangeRate(setRate, startTime);
+
+				if(cameraAdministrator.State == CurrentState.Active)
+					cameraAdministrator.ChangeRate(setRate, startTime);
 			}else if(MotionPara.SpeedRate <= 1.01f && MotionPara.SpeedRate > 0.51f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.1f, 1);
-                if (cameraAdministrator.State == CurrentState.Active)
-                    cameraAdministrator.ChangeRate(setRate, startTime);
+
+				//鼠标动画
+				cursormoveAdministrator.ChangeRate(setRate, startTime);
+				//
 				motionAdministrator.ChangeRate(setRate, startTime);
+
+				if(cameraAdministrator.State == CurrentState.Active)
+					cameraAdministrator.ChangeRate(setRate, startTime);
 			}
 		}
 	}
@@ -333,9 +379,11 @@ public class MotionManager : MonoBehaviour {
 	//设置播放速率
 	public void ChangeRate(float set_rate)
 	{
+
+
+		motionAdministrator.ChangeRate(set_rate, startTime);
 		if (cameraAdministrator.State == CurrentState.Active)
 			cameraAdministrator.ChangeRate(set_rate, startTime);
-		motionAdministrator.ChangeRate(set_rate, startTime);
 	}
 
 	//单步播放按钮
@@ -348,24 +396,20 @@ public class MotionManager : MonoBehaviour {
 	//播放过程停止
 	public void StopButton()
 	{
-		MotionPara.MotionActive = false;
-
 		//Camera
-		if (cameraFlag){
+		cameraFlag = false;
+		MotionPara.MotionActive = false;
+		cameraAdministrator.State = CurrentState.Old;
+		if (cameraFlag) {
 			cameraAdministrator.PostProcess();
 		}
-		cameraFlag = false;
-		cameraAdministrator.State = CurrentState.Old;
-		
 		//Trigger
 		MotionPara.triggerPlay = false;
 		st_Trigger.gameObject.SetActive(false);
 		BtnFunction.AllForbit();
-
 		//Tips
 		st_Interface.TipsWindow(false, "", false);
 		st_Interface.Voice("");
-
 		//General
 		if (generMotionFlag) {
 			motionAdministrator.PostProcess();
@@ -405,7 +449,7 @@ public class MotionManager : MonoBehaviour {
 		MotionPara.taskRootPath = Application.dataPath + "/Resources/";
 		//当前运动方式和状态
 		FuncPara.currentMotion = MotionState.Teaching;  //当前的运动状态---教
-		FuncPara.curentMode = Movement.Chai;  //当前运动方式---拆卸
+//		FuncPara.curentMode = Movement.Chai;  //当前运动方式---拆卸
 		//任务初始化
 		ParaInitialize();
 		//状态初始化
@@ -480,6 +524,11 @@ public class MotionManager : MonoBehaviour {
 			MotionPara.rotateDegreeRate = float.Parse((string)toolVariable.Rows[10][1].ToString());
 			MotionPara.cameraLineSpeed = float.Parse((string)toolVariable.Rows[11][1].ToString());
 			MotionPara.cameraAngleSpeed = float.Parse((string)toolVariable.Rows[12][1].ToString());
+
+			//鼠标贴图直线运动速度
+			MotionPara.Move_Speed = float.Parse((string)toolVariable.Rows[13][1].ToString());
+			//鼠标贴图旋转运动角速度
+			MotionPara.Rotate_Speed = float.Parse((string)toolVariable.Rows[14][1].ToString()); 
 		}catch{
 			Debug.LogError(MotionPara.taskRootPath + MotionPara.taskName + "/ToolsVariable.xls表中参数填写错误！");
 			return false;
@@ -557,16 +606,181 @@ public class MotionManager : MonoBehaviour {
 		}
 		//根据ID加载功能表格
 		ExcelOperator excelReader = new ExcelOperator();
-		string[] sheetArray = new string[] {"MAIN", "CAMERA", "TIPS", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"};
+		string[] sheetArray = new string[] {"MAIN", "CAMERA", "TIPS", "CURSORMOVE", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"};
         //3DMAX信息读取
         maxNumber = 0;
 		bool readedMax = false;
+
+		if(generateZData){
+			//更新ZID中sheet ID,记录
+			string[] contents = new string[3];
+			
+			DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + "CID" + ".xls", "ID");
+			for(int k=sheetTable.Rows.Count-1; k>=0; k--){
+				DataRow dr = sheetTable.Rows[k];
+				contents[0] = "Z"+ (idList.Count- k);
+				contents[1] = dr[1].ToString();
+				contents[2] = dr[2].ToString();
+				
+				ExcelOperator ewo = new ExcelOperator();
+				if(contents[0] != "Z1"){
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/ZID" , "ID", contents);
+				}
+				else{
+					ewo.UpdateData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/ZID" , "ID", contents, 0);
+				}
+			}
+		}
+
 		//ID表遍历
 		for(int i = id_number; i < idList.Count; i++){
             cTime = 0f;
 			addMotionTime = 0f;
 			tableNum = (i + 1).ToString();
 			MotionPara.excelName = idList[i];
+
+			zn = "Z"+ (idList.Count- i);
+			if(generateZData){
+				//生成ZN文件
+				if(zn != "Z1"){
+					File.Copy(Application.dataPath + "/Resources/" + taskName + "/Z/Z1.xls"
+					          , Application.dataPath + "/Resources/" + taskName + "/Z/"+ zn+ ".xls"
+					          , false);
+				}
+				//生成ZN中sheet "MAIN", "CAMERA", "TIPS", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"
+				ExcelOperator ewo = new ExcelOperator();
+				DataRow dr;
+				//MAIN
+				DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "MAIN");
+				float total_time = 0f;
+				for(int k=sheetTable.Rows.Count-1; k>=0; k--){//倒序遍历
+					dr = sheetTable.Rows[k];
+					//总时间
+					if(k == (sheetTable.Rows.Count-1)){
+						total_time = float.Parse(dr[7].ToString());
+					}
+					
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					//修正ID
+					tmp_content[1] = (sheetTable.Rows.Count-k +1).ToString();
+					//修正时间
+					if(k == 0){
+						tmp_content[7] = total_time.ToString();
+					}else{
+						DataRow dr2 = sheetTable.Rows[k-1];
+						tmp_content[7] = (total_time - float.Parse(dr2[7].ToString())).ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "MAIN", tmp_content);
+				}
+				
+				//CAMERA, 需修改
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "CAMERA");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "CAMERA", tmp_content);
+				}
+
+				//TIPS
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "TIPS");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "TIPS", tmp_content);
+				}
+
+				//CURSORMOVE
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "CURSORMOVE");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "CURSORMOVE", tmp_content);
+				}
+
+				//EXCEL, 需修改
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "EXCEL");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "EXCEL", tmp_content);
+				}
+
+				//3DMAX
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "3DMAX");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "3DMAX", tmp_content);
+				}
+
+				//PROGRAM, 需修改
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "PROGRAM");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "PROGRAM", tmp_content);
+				}
+
+				//TRIGGER
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "TRIGGER");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "TRIGGER", tmp_content);
+				}
+
+				//Group
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "Group");
+				DataTable sheetTable_tmp = ewo.ExcelReader(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "Group");
+				if(sheetTable_tmp.Columns.Count < sheetTable.Columns.Count){
+					Debug.LogError("Z1表格的列数不足,请手动添加Z1表格列数,需增加列数为"+ (sheetTable.Columns.Count - sheetTable_tmp.Columns.Count));
+				}
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable_tmp.Columns.Count];
+					for(int m=0; m<sheetTable_tmp.Columns.Count; m++){
+						tmp_content[m] = "";
+					}
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+						
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "Group", tmp_content);
+				}
+			}
+
 			DataSet motionDataSet = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", sheetArray);
 			//检查功能表格正确性
 			if(motionDataSet.Tables.Count != 0){
@@ -575,6 +789,7 @@ public class MotionManager : MonoBehaviour {
 				motionDataSet.Tables["[MAIN$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[MAIN$]"].Columns["ID"]};
 				motionDataSet.Tables["[CAMERA$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[CAMERA$]"].Columns["ID"]};
 				motionDataSet.Tables["[TIPS$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[TIPS$]"].Columns["ID"]};
+				motionDataSet.Tables["[CURSORMOVE$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[CURSORMOVE$]"].Columns["ID"]};
 				motionDataSet.Tables["[EXCEL$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[EXCEL$]"].Columns["ID"]};
 				motionDataSet.Tables["[3DMAX$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[3DMAX$]"].Columns["ID"]};
 				motionDataSet.Tables["[TRIGGER$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[TRIGGER$]"].Columns["ID"]};
@@ -589,22 +804,16 @@ public class MotionManager : MonoBehaviour {
 					}
 				}
 				for(int j = row_number; j < motionDataSet.Tables["[MAIN$]"].Rows.Count; j++){
-					if (isTimeLoad)  //进度条时间修订值
-					{
-						try
-						{
-							maxProcess = (currentTime + float.Parse((string)motionDataSet.Tables["[MAIN$]"].Rows[j][6].ToString())) * perTime;
-						}
-						catch
-						{
-							Debug.LogError("时间信息可能为空，位置：" + ErrorLocation.Locate("MAIN", "TIME", MotionPara.mainRowNumber));
-						}
-					}
+
 					rowNum = (j + 2).ToString();
+					//生成装配表位置
+					if(i == 0 && createPosition){
+						st_Location.LocationCreate(zn, "END", false);
+					}
 					//自动生成Location等状态信息
 					if (createPosition){
 						if (j == 0){
-							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), false);
+							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), true);
 						}else{
 							st_Location.LocationCreate(MotionPara.excelName, (j + 2).ToString(), false);
 						}
@@ -615,28 +824,45 @@ public class MotionManager : MonoBehaviour {
 					//检查到有空行停止运行
 					bool isRowBlank = false;
 					//先解决CAMERA问题，考过程不触发
-					string cameStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][2].ToString();
-					if(cameStr != ""){
-						isRowBlank = isRowBlank || true;
-						st_Interface.TipsWindow(false, "", false);
-						yield return StartCoroutine(CameraCoroutine(cameStr, motionDataSet.Tables["[CAMERA$]"]));
-					}else{
-						isRowBlank = isRowBlank || false;
+					if(FuncPara.currentMotion != MotionState.Examining){
+						string cameStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][2].ToString();
+						if(cameStr != ""){
+							isRowBlank = isRowBlank || true;
+							st_Interface.TipsWindow(false, "", false);
+							yield return StartCoroutine(CameraCoroutine(cameStr, motionDataSet.Tables["[CAMERA$]"]));
+						}else{
+							isRowBlank = isRowBlank || false;
+						}
 					}
 
 					//再解决TIPS问题，教触发，练触发可选，考不触发
-					string tipsStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][3].ToString();
-					if(tipsStr != ""){
-						isRowBlank = isRowBlank || true;
-						yield return StartCoroutine(TipsCoroutine(tipsStr, motionDataSet.Tables["[TIPS$]"]));
-					}else{
-						st_Interface.TipsWindow(false, "", false);
-						isRowBlank = isRowBlank || false;
+					if(FuncPara.currentMotion != MotionState.Examining){
+						string tipsStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][3].ToString();
+						if(tipsStr != ""){
+							isRowBlank = isRowBlank || true;
+							yield return StartCoroutine(TipsCoroutine(tipsStr, motionDataSet.Tables["[TIPS$]"]));
+						}else{
+							st_Interface.TipsWindow(false, "", false);
+							isRowBlank = isRowBlank || false;
+						}
 					}
 
+					//小手移动动画，教触发，练，考不触发
+					if(FuncPara.currentMotion == MotionState.Teaching){
+						string tipsStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][4].ToString();
+						if(tipsStr != ""){
+							isRowBlank = isRowBlank || true;
+							yield return StartCoroutine(CursormoveCoroutine(tipsStr, motionDataSet.Tables["[CURSORMOVE$]"]));
+						}else{
+							st_Interface.TipsWindow(false, "", false);
+							isRowBlank = isRowBlank || false;
+						}
+					}
+					//
+
 					//如果是练过程，等待触发完成再继续往下运动,Trigger，TODO：触发的是程序内部的某个动作而不是表格动作
-					if(FuncPara.currentMotion == MotionState.Exercising){
-						string triggerStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][5].ToString();
+					if(FuncPara.currentMotion == MotionState.Exercising || FuncPara.currentMotion == MotionState.Examining){
+						string triggerStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][6].ToString();
 						if(triggerStr != ""){
 							isRowBlank = isRowBlank || true;
 							//练触发
@@ -647,7 +873,7 @@ public class MotionManager : MonoBehaviour {
 					}
 
 					//Excel、3DMax、Tips、Camera、Program动画同时运动
-					string motionStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][4].ToString();
+					string motionStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][5].ToString();
 					motionAdministrator.Clear();
 					if(motionStr != ""){
 						isRowBlank = isRowBlank || true;
@@ -668,9 +894,10 @@ public class MotionManager : MonoBehaviour {
 					if(MotionPara.shouldStop){
 						yield break;
 					}
-                    
+
                     if(computeTime){
-						float totalTime = (cameraTime+ tipsTime+ motionsTime);
+						float totalTime = (cameraTime+ tipsTime+ motionsTime+ cursorTime);
+//						float totalTime = (cameraTime+ tipsTime+ motionsTime);
 						float tmp_addMotionTime = addMotionTime;
 						addMotionTime += totalTime;
 						//Debug.Log("_ID: " + motionDataSet.Tables["[MAIN$]"].Rows[j][1] + ";" + addMotionTime);
@@ -680,7 +907,7 @@ public class MotionManager : MonoBehaviour {
 						for (int k = 0; k < contents.Length; k++){
 							contents[k] = motionDataSet.Tables["[MAIN$]"].Rows[j][k].ToString();
 						}
-						contents[6] = addMotionTime.ToString();
+						contents[7] = addMotionTime.ToString();
 						ewo.UpdateData(MotionPara.dataRootPath + MotionPara.excelName, "MAIN", contents, 1);
 
 						cTime += (totalTime);
@@ -691,9 +918,9 @@ public class MotionManager : MonoBehaviour {
 							if(motionAdministrator._motionList[k].GetType().ToString() == "MaxMotion")
 							{
 								if(!readedMax){
-									DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + "CID"		 + ".xls", "3DMAX");
+									DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + "CID"+ ".xls", "3DMAX");
 									if(sheetTable.Rows.Count > 0){
-										Debug.LogError("CID.xls中工作表3DMAX中已有数据,请删除最后一个ID为2的行之前		的数据");
+										Debug.LogError("CID.xls中工作表3DMAX中已有数据,请删除最后一个ID为2的行之前的数据");
 									}
 									readedMax = true;
 								}
@@ -725,15 +952,31 @@ public class MotionManager : MonoBehaviour {
 
 								ewo.AddData(MotionPara.dataRootPath + "CID", "3DMAX", addContent);
 								maxNumber++;
-
 							}
 						}
 					}
+					//自动生成装配表Location等状态信息
+					if (createPosition){
+						if (j == 0){
+							st_Location.LocationCreate(zn, (motionDataSet.Tables["[MAIN$]"].Rows.Count- j + 1).ToString(), true);
+						}else{
+							st_Location.LocationCreate(zn, (motionDataSet.Tables["[MAIN$]"].Rows.Count- j + 1).ToString(), false);
+						}
+					}
+
 					//修正时间设定
 					if (isTimeLoad && !computeTime)
 					{
-						hSliderValue = maxProcess;
+						try
+						{
+							hSliderValue = (currentTime + float.Parse((string)motionDataSet.Tables["[MAIN$]"].Rows[j][7].ToString())) * perTime;
+						}
+						catch 
+						{
+							Debug.LogError("时间信息可能为空，位置：" + ErrorLocation.Locate("MAIN", "TIME", MotionPara.mainRowNumber));
+						}
 					}
+
 				}
 				//row参数清零
 				row_number = 0;
@@ -747,6 +990,7 @@ public class MotionManager : MonoBehaviour {
 				if(i == idList.Count - 1 && createPosition){
 					st_Location.LocationCreate(MotionPara.excelName, "END", false);
 				}
+
 			}else{
 				Debug.LogError(MotionPara.dataRootPath + idList[i] + ".xls" + "表格为空，请检查！");
 				yield break;
@@ -770,8 +1014,9 @@ public class MotionManager : MonoBehaviour {
 				ExcelOperator ewo = new ExcelOperator();
 				ewo.UpdateData(MotionPara.dataRootPath + "CID", "ID", contents, 0);
 			}
+
+
         }
-		st_Interface.TipsWindow(false, "", false);
 		computeTime = false;
 		yield return null;
 	}
@@ -813,8 +1058,93 @@ public class MotionManager : MonoBehaviour {
 				else
 				{
 					cameraAdministrator.Init();
-                    camera_time += cameraAdministrator.StandardTime;
+					camera_time += cameraAdministrator.StandardTime;
+
+					string[] tmp_content = new string[14];
+					ExcelOperator excelReader = new ExcelOperator();
+					if(generateZData){
+						//CAMERA,sheet修改
+						DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "CAMERA");
+
+						Debug.Log(zn+"修改CAMERA@"+cameKeyStr);
+//						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)- 2];
+						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)];
+						tmp_content = new string[sheetTable.Columns.Count];
+						for(int m=0; m<sheetTable.Columns.Count; m++){
+							tmp_content[m] = dr[m].ToString();
+						}
+						
+						bool isLinear = (tmp_content[6] != "");
+						//Camera直线运动
+						if(isLinear){
+							//初始位置,目标位置
+							string tmp_start_pos = tmp_content[5];
+							string tmp_target_pos = tmp_content[6];
+							if(tmp_start_pos == ""){//初始位置为空
+								if(tmp_content[4] == ""){//参考物体为空
+									Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.position;
+									tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
+								}else{
+									Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.localPosition;
+									tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
+								}
+							}
+							else{
+								tmp_content[6] = tmp_start_pos;
+							}
+							tmp_content[5] = tmp_target_pos;
+						}
+						//Camera旋转运动
+						else{
+							//旋转角度
+							string tmp_rotate_angle = tmp_content[11];
+							tmp_content[11] = (0-int.Parse(tmp_rotate_angle)).ToString();
+						}
+						
+						//视域变化
+						string tmp_start_fov = tmp_content[7];
+						string tmp_target_fov = tmp_content[8];
+						if(tmp_target_fov != ""){//目标视域不为空
+							tmp_content[7] = tmp_target_fov;
+							if(tmp_start_fov != ""){//初始视域不为空
+								tmp_content[8] = tmp_start_fov;
+							}
+							else{
+								if(GameObject.Find(tmp_content[2]).camera.isOrthoGraphic){
+									tmp_content[8] = GameObject.Find(tmp_content[2]).camera.orthographicSize.ToString();
+								}
+								else{
+									tmp_content[8] = GameObject.Find(tmp_content[2]).camera.fieldOfView.ToString();
+								}
+							}
+						}
+					}
+
 					cameraAdministrator.PostProcess();
+
+					if(generateZData){
+						//CAMERA,sheet修改
+						DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
+					
+//						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)- 2];
+						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)];
+							
+						bool isLinear = (tmp_content[6] != "");
+						//Camera旋转运动
+						if(!isLinear){
+							//初始位置
+							if(tmp_content[4] == ""){//参考物体为空
+								Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.position;
+								tmp_content[5] = (vec3.x+","+vec3.y+","+vec3.z);
+							}else{
+								Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.localPosition;
+								tmp_content[5] = (vec3.x+","+vec3.y+","+vec3.z);
+							}
+						}
+							
+						ExcelOperator ewo = new ExcelOperator();
+						ewo.UpdateData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "CAMERA", tmp_content, 1);
+					}
 				}
 			}else{
 				MotionPara.shouldStop = stopInRow;
@@ -922,6 +1252,126 @@ public class MotionManager : MonoBehaviour {
 		MotionPara.MotionActive  = false;
 	}
 
+	//CursorMove控制模块
+	private IEnumerator CursormoveCoroutine(string tips_str, DataTable tips_table)
+	{
+		string[] cursorArray = tips_str.Split('|');
+		float cursor_time = 0f;
+		for(int i = 0; i < cursorArray.Length; i++){
+			string cameKeyStr = InterData.CmdCheck(cursorArray[i], "CURSORMOVE");
+			if(cameKeyStr != ""){
+				//摄像机运动信息提取
+				DataRow cameRowData = tips_table.Rows.Find(cameKeyStr);
+				//ID获取CursorMove行失败
+				if(cameRowData == null){
+					MotionPara.shouldStop = stopInRow;
+					if(MotionPara.isEditor){
+						Debug.LogError("CURSORMOVE没有这个ID--"+cameKeyStr);
+					}
+					continue;
+				}
+				bool isRight = true;
+				CursorInfoManager tempInfoManager = new CursorInfoManager();
+				cursormoveAdministrator = tempInfoManager.CursorInfoGet(cameRowData, cameKeyStr, ref isRight);
+				if(!isRight){
+					MotionPara.shouldStop = stopInRow;
+					yield break;
+				}
+
+				if (!computeTime)
+				{
+					cursormoveAdministrator.Init();
+					startTime = 0;
+					MotionPara.MotionActive = true;
+					yield return StartCoroutine(CursormoveTimer());
+
+
+					//添加按键触发：单击，长按两种情况。
+					//1.先判断目标位置是否是按键
+					if(cursormoveAdministrator.isButton){
+						//单击
+						if(!PanelButton.btnType[cameRowData[11].ToString()]){
+							TriggerManager.GUIButtonEvent(cameRowData[11].ToString());//单击响应
+							PanelButton.Btn_Function(cameRowData[11].ToString());
+							
+							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
+						}
+						//长按
+						else{
+							//长按响应
+							yield return StartCoroutine(CursorLongPressTimer(cameRowData[11].ToString(), cursormoveAdministrator.Step_LongPress));
+							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
+						}
+					}
+					//鼠标贴图移动到物体上,触发相应的函数
+					else{
+						//点击
+						if(cursormoveAdministrator.Step_LongPress == -1f){
+							PanelButton.Btn_Function(cameRowData[11].ToString());
+							
+							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
+						}
+						//长按
+						else{
+							//长按响应
+							yield return StartCoroutine(CursorLongPressTimer(cameRowData[11].ToString(), cursormoveAdministrator.Step_LongPress));
+							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
+						}
+					}
+				}
+				else
+				{
+					//待添加
+					cursor_time += cursormoveAdministrator.StandardTime;
+					cursormoveAdministrator.PostProcess();
+
+					if(generateZData){
+						//待添加
+
+					}
+				}
+			}else{
+				MotionPara.shouldStop = stopInRow;
+				//编辑器模式下会出现警报信息
+				if(MotionPara.isEditor){
+					Debug.LogError(ErrorLocation.Locate("MAIN", "CURSORMOVE", MotionPara.mainRowNumber));
+				}
+			}	
+		}
+		if (computeTime)
+		{
+			//待添加
+			cursorTime = cursor_time;
+			Debug.Log("cursorTime:"+ cursorTime);
+		}
+		yield return null;
+	}
+	
+	//CursorMove模块时间控制，待修改
+	private IEnumerator CursormoveTimer()
+	{
+		while(!cursormoveAdministrator.TimesUp(startTime))
+		{
+			yield return new WaitForSeconds(0.01f);
+		}
+
+		MotionPara.MotionActive = false;
+		cursormoveAdministrator.PostProcess();
+	}
+
+	//Button长按时间控制
+	private IEnumerator CursorLongPressTimer(string btn_name, float step_LongPress)
+	{
+
+		while(!PanelButton.DetectionLongPress(btn_name, step_LongPress))
+		{
+			TriggerManager.GUIButtonEvent(btn_name);//单击响应
+			PanelButton.Btn_Function(btn_name);
+			yield return new WaitForSeconds(0.01f);
+		}
+	}
+
+
     //Trigger控制模块
     private IEnumerator TriggerCoroutine(string trigger_str, DataTable trigger_table)
     {
@@ -986,6 +1436,15 @@ public class MotionManager : MonoBehaviour {
 					}
 				}
 
+				//触发结束条件
+				string longpressStr = ((string)triggerRowData[5].ToString()).ToLower();
+				if(longpressStr != ""){
+					tempUnit.TriggerLongPress = float.Parse(longpressStr);
+				}
+				else{
+					tempUnit.TriggerLongPress = -1f;
+				}
+
 				TriggerManager.triggerUnitList.Add(tempUnit);
             }else{
                 MotionPara.shouldStop = stopInRow;
@@ -1001,6 +1460,7 @@ public class MotionManager : MonoBehaviour {
         MotionPara.triggerPlay = true;
 		//如果有GUI按钮的情况
 		BtnFunction.AllForbit();
+		Debug.Log("BtnFunction.AllForbit");
 		for (int i = 0; i < TriggerManager.triggerUnitList.Count; i++)
 		{
 			if (TriggerManager.triggerUnitList[i].BtnFuncList != null) 
@@ -1008,6 +1468,7 @@ public class MotionManager : MonoBehaviour {
 				for (int j = 0; j < TriggerManager.triggerUnitList[i].BtnFuncList.Count; j++)
 				{
 					BtnFunction.SetBtn(TriggerManager.triggerUnitList[i].BtnFuncList[j], true);
+					Debug.Log("BtnFunction.SetBtn:"+ TriggerManager.triggerUnitList[i].BtnFuncList[j]);
 				}
 			}
 		}
@@ -1153,32 +1614,32 @@ public class MotionManager : MonoBehaviour {
 		}
 		//有运动
 		if(motionAdministrator.Count > 0){
-				motionAdministrator.Init();
-				//有TipsMotion的情况
-				if (motionAdministrator.HasTipsMotion != null && !computeTime)
+			motionAdministrator.Init();
+			//有TipsMotion的情况
+			if (motionAdministrator.HasTipsMotion != null && !computeTime)
+			{
+				st_Interface.Voice(motionAdministrator.HasTipsMotion.TipsString, tipsAdministrator.TipsSpeed);
+				if (motionAdministrator.HasTipsMotion.IsString)
 				{
-					st_Interface.Voice(motionAdministrator.HasTipsMotion.TipsString, tipsAdministrator.TipsSpeed);
-					if (motionAdministrator.HasTipsMotion.IsString)
-					{
-						if (motionAdministrator.HasTipsMotion.IsTitle)
-							st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
-								motionAdministrator.HasTipsMotion.IsMoveable,
-								motionAdministrator.HasTipsMotion.PosString, WindowColor.Blue);
-						else
-							st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
-								motionAdministrator.HasTipsMotion.IsMoveable, motionAdministrator.HasTipsMotion.PosString);
-					}
+					if (motionAdministrator.HasTipsMotion.IsTitle)
+						st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
+							motionAdministrator.HasTipsMotion.IsMoveable,
+							motionAdministrator.HasTipsMotion.PosString, WindowColor.Blue);
 					else
-					{
-						if (motionAdministrator.HasTipsMotion.IsTitle)
-							st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
-								motionAdministrator.HasTipsMotion.IsMoveable,
-								motionAdministrator.HasTipsMotion.PosVec2, WindowColor.Blue);
-						else
-							st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
-								motionAdministrator.HasTipsMotion.IsMoveable, motionAdministrator.HasTipsMotion.PosVec2);
-					}
+						st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
+							motionAdministrator.HasTipsMotion.IsMoveable, motionAdministrator.HasTipsMotion.PosString);
 				}
+				else
+				{
+					if (motionAdministrator.HasTipsMotion.IsTitle)
+						st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
+							motionAdministrator.HasTipsMotion.IsMoveable,
+							motionAdministrator.HasTipsMotion.PosVec2, WindowColor.Blue);
+					else
+						st_Interface.TipsWindow(true, motionAdministrator.HasTipsMotion.TipsString,
+							motionAdministrator.HasTipsMotion.IsMoveable, motionAdministrator.HasTipsMotion.PosVec2);
+				}
+			}
 			if (!computeTime)
 			{
 				startTime = 0;
@@ -1195,17 +1656,268 @@ public class MotionManager : MonoBehaviour {
 						motions_Time = motionAdministrator._motionList[i].StandardTime;
 					}
 					motionAdministrator._motionList[i].Init();
+
+					string[] tmp_content = new string[14];
+					string[] tmp_content_excel = new string[14];
+					ExcelOperator excelReader = new ExcelOperator();
+					int id = int.Parse(motionAdministrator.GetMotionID("SIMPLE",i));
+//					id -= 2;
+					if(generateZData){
+						//CAMERA
+						if(motionAdministrator._motionList[i].GetType().ToString() == "CameraMotion"){
+
+							//CAMERA,sheet修改
+							DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
+							
+							Debug.Log(zn+"修改CAMERA@"+id);
+							DataRow dr = sheetTable.Rows[id];
+							tmp_content = new string[sheetTable.Columns.Count];
+							for(int m=0; m<sheetTable.Columns.Count; m++){
+								tmp_content[m] = dr[m].ToString();
+							}
+							
+							bool isLinear = (tmp_content[6] != "");
+							//Camera直线运动
+							if(isLinear){
+								//初始位置,目标位置
+								string tmp_start_pos = tmp_content[5];
+								string tmp_target_pos = tmp_content[6];
+								if(tmp_start_pos == ""){//初始位置为空
+									if(tmp_content[4] == ""){//参考物体为空
+										Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.position;
+										tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
+									}else{
+										Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.localPosition;
+										tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
+									}
+								}
+								else{
+									tmp_content[6] = tmp_start_pos;
+								}
+								tmp_content[5] = tmp_target_pos;
+							}
+							//Camera旋转运动
+							else{
+								//旋转角度
+								string tmp_rotate_angle = tmp_content[11];
+								tmp_content[11] = (0-int.Parse(tmp_rotate_angle)).ToString();
+							}
+							
+							//视域变化
+							string tmp_start_fov = tmp_content[7];
+							string tmp_target_fov = tmp_content[8];
+							if(tmp_target_fov != ""){//目标视域不为空
+								tmp_content[7] = tmp_target_fov;
+								if(tmp_start_fov != ""){//初始视域不为空
+									tmp_content[8] = tmp_start_fov;
+								}
+								else{
+									if(GameObject.Find(tmp_content[2]).camera.isOrthoGraphic){
+										tmp_content[8] = GameObject.Find(tmp_content[2]).camera.orthographicSize.ToString();
+									}
+									else{
+										tmp_content[8] = GameObject.Find(tmp_content[2]).camera.fieldOfView.ToString();
+									}
+								}
+							}
+						}
+
+						//EXCEL
+						if(motionAdministrator._motionList[i].GetType().ToString() == "BasicMotion"){
+							//EXCEL,sheet修改
+							DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "EXCEL");
+
+							Debug.Log(zn+"修改EXCEL@"+id);
+							DataRow dr = sheetTable.Rows[id];
+							tmp_content_excel = new string[sheetTable.Columns.Count];
+							for(int m=0; m<sheetTable.Columns.Count; m++){
+								tmp_content_excel[m] = dr[m].ToString();
+							}
+
+							if(tmp_content_excel[4] != ""){//加速直线运动
+								string tmp_AcceleratedMove = tmp_content_excel[4];
+								string tmp_MoveSpeed = tmp_content_excel[5];
+								tmp_content_excel[4] = tmp_MoveSpeed ;
+								tmp_content_excel[5] = tmp_AcceleratedMove;
+							}
+							if(tmp_content_excel[6] != ""){//直线运动向量
+								BaseCompute bc = new BaseCompute();
+								bool isRight = true;
+								Vector3 vec3 = bc.Vector3Conversion(tmp_content_excel[6], ref isRight);
+								if(isRight){
+									vec3 = new Vector3(0f- vec3.x, 0f- vec3.y, 0f- vec3.z);
+									tmp_content_excel[6] = (vec3.x+","+vec3.y+","+vec3.z);
+								}
+								else{
+									Debug.LogError("tmp_content_excel_6:"+tmp_content_excel[6]);
+								}
+							}
+
+							if(tmp_content_excel[8] != ""){//加速旋转运动
+								string tmp_AcceleratedMove = tmp_content_excel[8];
+								string tmp_MoveSpeed = tmp_content_excel[9];
+								tmp_content_excel[8] = tmp_MoveSpeed ;
+								tmp_content_excel[9] = tmp_AcceleratedMove;
+							}
+							if(tmp_content_excel[7] != ""){//旋转轴向
+								BaseCompute bc = new BaseCompute();
+								bool isRight = true;
+								Vector3 vec3 = bc.Vector3Conversion(tmp_content_excel[7], ref isRight);
+								if(isRight){
+									vec3 = new Vector3(0f- vec3.x, 0f- vec3.y, 0f- vec3.z);
+									tmp_content_excel[7] = (vec3.x+","+vec3.y+","+vec3.z);
+								}
+								else{
+									Debug.LogError("tmp_content_excel_7:"+tmp_content_excel[6]);
+								}
+							}
+
+							if(tmp_content_excel[11] != ""){//有参考物体
+								//获得Group ID,从Group中获得第一个物体
+								int group_id = int.Parse(tmp_content_excel[2]); 
+								sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName+ ".xls", "Group");
+								dr = sheetTable.Rows[0];
+								string group_obj = dr[group_id+1].ToString();
+
+								//保存第一个物体的父亲
+								string parent_name = "";
+								if(GameObject.Find(group_obj).transform.parent != null){
+									parent_name = GameObject.Find(group_obj).transform.parent.name;
+								}
+
+								//将该物体的父亲设置为参考物体,获得该物体的相对坐标,角度
+								GameObject.Find(group_obj).transform.parent = GameObject.Find(tmp_content_excel[11]).transform;
+								Vector3 vec3 = GameObject.Find(group_obj).transform.localPosition;
+								tmp_content_excel[12] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+								vec3 = GameObject.Find(group_obj).transform.localEulerAngles;
+								tmp_content_excel[13] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+
+								//恢复该物体的父子关系
+								if(parent_name != ""){
+									GameObject.Find(group_obj).transform.parent = GameObject.Find(parent_name).transform;
+								}else{
+									GameObject.Find(group_obj).transform.parent = null;
+								}
+							}
+
+							ExcelOperator ewo = new ExcelOperator();
+							ewo.UpdateData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "EXCEL", tmp_content_excel, 1);
+						}
+
+					}
 					motionAdministrator._motionList[i].PostProcess();
+					if(generateZData){
+						//CAMERA
+						if(motionAdministrator._motionList[i].GetType().ToString() == "CameraMotion"){
+							//CAMERA,sheet修改
+							DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
+							
+							DataRow dr = sheetTable.Rows[id];
+							
+							bool isLinear = (tmp_content[6] != "");
+							//Camera旋转运动
+							if(!isLinear){
+								//初始位置
+								if(tmp_content[4] == ""){//参考物体为空
+									Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.position;
+									tmp_content[5] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+								}else{
+									Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.localPosition;
+									tmp_content[5] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+								}
+							}
+							
+							ExcelOperator ewo = new ExcelOperator();
+							ewo.UpdateData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "CAMERA", tmp_content, 1);
+						}
+						
+					}
 				}
 				for (int i = 0; i < motionAdministrator._complexMotionList.Count; i++)
 				{
 					float tmpMotionTime = 0f;
+
+					string[] tmp_content = new string[12];
+					ExcelOperator excelReader = new ExcelOperator();
+					int id = int.Parse(motionAdministrator.GetMotionID("COMPLEX",i));
+					id -= 2;
+					//PROGRAM
+					if(generateZData){
+						//PROGRAM,sheet修改
+						DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "PROGRAM");
+						
+						Debug.Log(zn+ "修改PROGRAM@"+ id);
+						DataRow dr = sheetTable.Rows[id];
+						tmp_content = new string[sheetTable.Columns.Count];
+						for(int m=0; m<sheetTable.Columns.Count; m++){
+							tmp_content[m] = dr[m].ToString();
+						}
+
+						if(tmp_content[2] == "TongBang"){
+							BaseCompute bc = new BaseCompute();
+							bool isRight = true;
+							Vector3 vec3 = bc.Vector3Conversion(tmp_content[6], ref isRight);
+							vec3 = new Vector3(0f-vec3.x, 0f-vec3.y, 0f-vec3.z);
+							tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
+						}
+						else if(tmp_content[2] == "BaiFang"){
+							//获得Group ID,从Group中获得第一个物体
+							int group_id = int.Parse(tmp_content[3]);
+							sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName+ ".xls", "Group");
+							dr = sheetTable.Rows[0];
+							string group_obj = dr[group_id+1].ToString();
+							
+							//保存第一个物体的父亲
+							string parent_name = "";
+							if(GameObject.Find(group_obj).transform.parent != null){
+								parent_name = GameObject.Find(group_obj).transform.parent.name;
+							}
+							
+							//将该物体的父亲设置为参考物体,获得该物体的相对坐标,角度
+							GameObject.Find(group_obj).transform.parent = GameObject.Find(tmp_content[4]).transform;
+							Vector3 vec3 = GameObject.Find(group_obj).transform.localPosition;
+							tmp_content[5] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+							vec3 = GameObject.Find(group_obj).transform.localEulerAngles;
+							tmp_content[6] = (vec3.x+ ","+ vec3.y+ ","+ vec3.z);
+							
+							//恢复该物体的父子关系
+							if(parent_name != ""){
+								GameObject.Find(group_obj).transform.parent = GameObject.Find(parent_name).transform;
+							}else{
+								GameObject.Find(group_obj).transform.parent = null;
+							}
+						}
+						else if(tmp_content[2] == "NingSong"){
+							if(tmp_content[7] == "0,0,1"){
+								tmp_content[7] = "0,0,-1";
+							}
+							else if(tmp_content[7] == "0,0,-1"){
+								tmp_content[7] = "0,0,1";
+							}
+						}
+						else if(tmp_content[2] == "NingChu"){
+
+							if(tmp_content[6] == "0,1,0"){
+								tmp_content[6] = "0,-1,0";
+							}
+							else if(tmp_content[6] == "0,-1,0"){
+								tmp_content[6] = "0,1,0";
+							}
+						}
+
+						ExcelOperator ewo = new ExcelOperator();
+
+						ewo.UpdateData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "PROGRAM", tmp_content, 1);
+					}
+
 					for (int j = 0; j < motionAdministrator._complexMotionList[i].Count; j++)
 					{
 						tmpMotionTime += (motionAdministrator._complexMotionList[i][j].StandardTime);
 						motionAdministrator._complexMotionList[i][j].Init();
 						motionAdministrator._complexMotionList[i][j].PostProcess();
 					}
+
+					//PROGRAM
 
 					if (motions_Time < tmpMotionTime)
 					{
@@ -1229,6 +1941,7 @@ public class MotionManager : MonoBehaviour {
 		}
 		//Debug.Log(startTime);
 		generMotionFlag = false;
+
 		MotionPara.MotionActive = false;
 	}
 
@@ -1247,6 +1960,17 @@ public class MotionManager : MonoBehaviour {
 	// Update is called once per frame
 	void Update () 
 	{
+		/*//TEST, TO START
+		if(Input.GetKeyUp(KeyCode.Space)){
+			StartCoroutine(MainEntrance(0, 0));
+			MotionPara.shouldStop = false;
+		}
+
+		//TEST, TO PAUSE
+		if(Input.GetKeyUp(KeyCode.P)){
+			MotionPara.PauseControl = !MotionPara.PauseControl;
+		}*/
+
 		//Time Control
 		if (MotionPara.MotionActive && !MotionPara.PauseControl)
 		{
@@ -1255,7 +1979,6 @@ public class MotionManager : MonoBehaviour {
 		if (isTimeLoad && MotionPara.MotionActive && !MotionPara.PauseControl)
 		{
 			hSliderValue += Time.deltaTime * perTime * MotionPara.SpeedRate;
-			hSliderValue = Mathf.Min(hSliderValue, maxProcess);
 		}
 
 		//综合运动控制
@@ -1269,6 +1992,18 @@ public class MotionManager : MonoBehaviour {
 		{
 			ProcessTrigger();
 		}
+
+//		//鼠标贴图动画
+//		if(Input.GetKeyDown(KeyCode.H)){
+//			CursorInfoManager ci = new CursorInfoManager();
+//			CursorMotion cm = ci.CursorInfoGet_Test();
+//			cm.Init();
+//		}
+//		if(Input.GetKeyDown(KeyCode.J)){
+//			CursorInfoManager ci = new CursorInfoManager();
+//			CursorMotion cm = ci.CursorInfoGet_Test2();
+//			cm.Init();
+//		}
 	}
 
 	//进度条触发
@@ -1318,7 +2053,7 @@ public class MotionManager : MonoBehaviour {
 					{
 						nodeNo = i + 1;
 						float basicTime = timeRecorder - nodeTimeList[i];
-						DataTable mainTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "MAIN", "G", "G");
+						DataTable mainTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "MAIN", "H", "H");
 						for (int j = 0; j < mainTable.Rows.Count; j++)
 						{
 							if (presentTime < float.Parse((string)mainTable.Rows[j][0].ToString()) + basicTime)
@@ -1428,5 +2163,39 @@ public class MotionManager : MonoBehaviour {
 		//if(generMotionFlag && MotionPara.MotionActive && !MotionPara.PauseControl){
 		//	motionAdministrator.Move(startTime, MotionPara.SpeedRate, Time.deltaTime);
 		//}
+
+//				if(Input.GetKeyDown(KeyCode.W)){
+//					UnityEngine.Debug.Log("W");
+//		
+//					string file_path = Application.dataPath+"/test.json";
+//					string sheet_name = "testJson2";
+//					string[] column_name = new string[]{"name","id"};
+//					string[,] insert_content = new string[,]{{"nihao22", "1"},{"world22", "2"}};
+//					JsonOperator jo = new JsonOperator();
+//					jo.JsonWriter(file_path, sheet_name, column_name, insert_content, false);
+//				}
+//				if(Input.GetKeyDown(KeyCode.R)){
+//					UnityEngine.Debug.Log("R");
+//		
+//					string file_path = Application.dataPath+"/test.json";
+//					string sheet_name = "testJson2";
+//					JsonOperator jo = new JsonOperator();
+//					DataTable posTable = jo.JsonReader(file_path, sheet_name);
+//					for(int i = 0; i < posTable.Rows.Count; i++){
+//						for(int j=0; j< posTable.Columns.Count; j++){
+//							UnityEngine.Debug.Log(i+","+j+"--"+ posTable.Rows[i][j].ToString());
+//						}
+//					}
+//				}
+//				if(Input.GetKeyDown(KeyCode.D)){
+//					UnityEngine.Debug.Log("R");
+//					
+//					string file_path = Application.dataPath+"/test.json";
+//					string sheet_name = "testJson4";
+//					JsonOperator jo = new JsonOperator();
+//					jo.JsonDelete(file_path, sheet_name);
+//				}
+
+
 	}
 }

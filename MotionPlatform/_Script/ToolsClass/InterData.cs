@@ -125,6 +125,20 @@ public class BaseCompute
 		}
 		return rVector3;
 	}
+	
+	//字符串转化为Vector2
+	public Vector2 Vector2Conversion(string info, ref bool is_right)
+	{
+		Vector2 rVector2 = new Vector3(0, 0);
+		string[] infoArray = info.Split(',','，');
+		try{
+			rVector2.x = (float)Convert.ToDouble(infoArray[0]);
+			rVector2.y = (float)Convert.ToDouble(infoArray[1]);
+		}catch{
+			is_right = false;
+		}
+		return rVector2;
+	}
 
 	//字符串转化为float
 	public float FloatConversion(string info, ref bool is_right)
