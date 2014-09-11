@@ -21,4 +21,9 @@ public class FuncPara {
 	public static Font defaultFont;  //默认字体
 	public static Texture2D t2d_tipsWindow;  //提示Tips背景图
 	public static Dictionary<WindowColor, Texture2D> t2d_colorWindow = new Dictionary<WindowColor, Texture2D>();  //提示背景彩图
+
+	public static GUIStyle sty_Cursor = new GUIStyle();  //鼠标贴图
+	public static bool cursorShow = false;  //是否显示教学用Cursor
+	public static Vector2 cursorPosition = new Vector2(0, 0);  //Cursor位置
+	public static Vector2 rightRect = new Vector2(0, 0);  //
 }

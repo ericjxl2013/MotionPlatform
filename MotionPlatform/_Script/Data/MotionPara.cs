@@ -72,4 +72,9 @@ public class MotionPara
     public static bool singlePlay = false;
     //触发循环控制
     public static bool triggerPlay = false;
+
+	//鼠标贴图直线运动速度
+	public static float Move_Speed = 80F;
+	//鼠标贴图旋转运动角速度
+	public static float Rotate_Speed = 60F;  
 }

@@ -40,7 +40,7 @@ public class GUIInitial : MonoBehaviour {
 		FuncPara.t2d_colorWindow.Add(WindowColor.Purple, (Texture2D)Resources.Load("Texture/CustomMenu/Purple"));  //紫色
 		FuncPara.t2d_colorWindow.Add(WindowColor.Yellow, (Texture2D)Resources.Load("Texture/CustomMenu/Yellow"));  //黄色
 
-
+		FuncPara.sty_Cursor.normal.background = (Texture2D)Resources.Load("Texture/HandsEyes/free_for_job");
 		
 	}
 }
