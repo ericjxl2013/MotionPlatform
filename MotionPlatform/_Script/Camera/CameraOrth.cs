@@ -35,9 +35,18 @@ public class CameraOrth : MonoBehaviour
 	void Awake()
 	{
 		mainCamera = GameObject.Find ("Main Camera").GetComponent<Camera>();
-		upDownTrans = GameObject.Find("upDownTrans").transform;
+        try{
+            upDownTrans = GameObject.Find("upDownTrans").transform;
+        }catch{
+            Debug.LogError("要使用摄像机请创建一个名为upDownTrans的空物体，并拖到场景中的中心位置（合适位置）.");
+        }
+		try{
+            rightLeftTrans = GameObject.Find("rightLeftTrans").transform;
+        }catch{
+            Debug.LogError("要使用摄像机请创建一个名为rightLeftTrans的空物体，并拖到场景中的中心位置（合适位置）.");
+            return;
+        }
 		//upDownSavePoint = upDownTrans.position;
-		rightLeftTrans = GameObject.Find("rightLeftTrans").transform;
 		rightLeftTrans.rotation = mainCamera.transform.rotation;
 		rightLeftTrans.parent = mainCamera.transform;
 	}
