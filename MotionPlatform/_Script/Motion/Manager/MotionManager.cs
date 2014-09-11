@@ -75,7 +75,7 @@ public class MotionManager : MonoBehaviour {
 	private bool generMotionFlag = false;
 
 	//进度条参数
-	private Rect sliderRect = new Rect(25, 150, 250, 10);
+	//private Rect sliderRect = new Rect(25, 150, 250, 10);
 	[HideInInspector]
 	public float hSliderValue = 0f;
 	private bool timeDisplayToggle = false;
@@ -99,7 +99,7 @@ public class MotionManager : MonoBehaviour {
 	public float preProcess = 0f;  //按下鼠标前的进度
 
 	//TEST PARAMETER
-	private Rect testRect = new Rect(50, 50, 360, 350);
+	//private Rect testRect = new Rect(50, 50, 360, 350);
 	private bool isTeaching = true;
 	private string teaBtnStr = "教";
     
@@ -126,6 +126,7 @@ public class MotionManager : MonoBehaviour {
 		}
 
 		cameraAdministrator.State = CurrentState.Old;
+		cursormoveAdministrator.State = CurrentState.Old;
         InterData.InterDataInit();
 
 		//任务初始化
@@ -153,9 +154,9 @@ public class MotionManager : MonoBehaviour {
 		gameObject.AddComponent<CursorMove>();
 		st_CursorMove = gameObject.GetComponent<CursorMove>();
 
-		PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
-		PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
-		PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
+		//PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
+		//PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
+		//PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
 	}
 
 	// Use this for initialization
@@ -167,7 +168,7 @@ public class MotionManager : MonoBehaviour {
 
 	void OnGUI ()
 	{
-		testRect = GUI.Window(110, testRect, TestWindow, "");
+		//testRect = GUI.Window(110, testRect, TestWindow, "");
 		// Event guiEvent = Event.current;
 		// Debug.Log(guiEvent.type.ToString());
 	}
@@ -332,46 +333,18 @@ public class MotionManager : MonoBehaviour {
 		if(speed_flag){
 			if(MotionPara.SpeedRate >= 0.99f && MotionPara.SpeedRate < 3.9f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.5f, 1);
-
-				//鼠标动画
-				cursormoveAdministrator.ChangeRate(setRate, startTime);
-				//
-				motionAdministrator.ChangeRate(setRate, startTime);
-
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
+				ChangeRate(setRate);
 			}else if(MotionPara.SpeedRate >= 0.49f && MotionPara.SpeedRate < 1.0f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate + 0.1f, 1);
-
-				//鼠标动画
-				cursormoveAdministrator.ChangeRate(setRate, startTime);
-				//
-				motionAdministrator.ChangeRate(setRate, startTime);
-
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
+				ChangeRate(setRate);
 			}
 		}else{  //减速
 			if(MotionPara.SpeedRate > 1.01f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.5f, 1);
-
-				//鼠标动画
-				cursormoveAdministrator.ChangeRate(setRate, startTime);
-				//
-				motionAdministrator.ChangeRate(setRate, startTime);
-
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
+				ChangeRate(setRate);
 			}else if(MotionPara.SpeedRate <= 1.01f && MotionPara.SpeedRate > 0.51f){
 				float setRate = (float)Math.Round(MotionPara.SpeedRate - 0.1f, 1);
-
-				//鼠标动画
-				cursormoveAdministrator.ChangeRate(setRate, startTime);
-				//
-				motionAdministrator.ChangeRate(setRate, startTime);
-
-				if(cameraAdministrator.State == CurrentState.Active)
-					cameraAdministrator.ChangeRate(setRate, startTime);
+				ChangeRate(setRate);
 			}
 		}
 	}
@@ -379,11 +352,14 @@ public class MotionManager : MonoBehaviour {
 	//设置播放速率
 	public void ChangeRate(float set_rate)
 	{
-
-
-		motionAdministrator.ChangeRate(set_rate, startTime);
+		//摄像机运动
 		if (cameraAdministrator.State == CurrentState.Active)
 			cameraAdministrator.ChangeRate(set_rate, startTime);
+		//鼠标动画
+		if (cursormoveAdministrator.State == CurrentState.Active)
+			cursormoveAdministrator.ChangeRate(set_rate, startTime);
+		//通用动画
+		motionAdministrator.ChangeRate(set_rate, startTime);
 	}
 
 	//单步播放按钮
@@ -403,6 +379,9 @@ public class MotionManager : MonoBehaviour {
 		if (cameraFlag) {
 			cameraAdministrator.PostProcess();
 		}
+		//Cursor
+		cursormoveAdministrator.State = CurrentState.Old;
+		FuncPara.cursorShow = false;
 		//Trigger
 		MotionPara.triggerPlay = false;
 		st_Trigger.gameObject.SetActive(false);
@@ -1124,10 +1103,10 @@ public class MotionManager : MonoBehaviour {
 
 					if(generateZData){
 						//CAMERA,sheet修改
-						DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
+						//DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
 					
 //						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)- 2];
-						DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)];
+						//DataRow dr = sheetTable.Rows[int.Parse(cameKeyStr)];
 							
 						bool isLinear = (tmp_content[6] != "");
 						//Camera旋转运动
@@ -1283,6 +1262,7 @@ public class MotionManager : MonoBehaviour {
 					cursormoveAdministrator.Init();
 					startTime = 0;
 					MotionPara.MotionActive = true;
+					cursormoveAdministrator.State = CurrentState.Active;
 					yield return StartCoroutine(CursormoveTimer());
 
 
@@ -1354,8 +1334,9 @@ public class MotionManager : MonoBehaviour {
 		{
 			yield return new WaitForSeconds(0.01f);
 		}
-
+		cursormoveAdministrator.State = CurrentState.Old;
 		MotionPara.MotionActive = false;
+
 		cursormoveAdministrator.PostProcess();
 	}
 
@@ -1810,9 +1791,9 @@ public class MotionManager : MonoBehaviour {
 						//CAMERA
 						if(motionAdministrator._motionList[i].GetType().ToString() == "CameraMotion"){
 							//CAMERA,sheet修改
-							DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
+							//DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + MotionPara.excelName + ".xls", "CAMERA");
 							
-							DataRow dr = sheetTable.Rows[id];
+							//DataRow dr = sheetTable.Rows[id];
 							
 							bool isLinear = (tmp_content[6] != "");
 							//Camera旋转运动

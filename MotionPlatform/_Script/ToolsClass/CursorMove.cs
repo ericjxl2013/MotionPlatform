@@ -32,7 +32,7 @@ public class CursorMove : MonoBehaviour {
 	float yEnd = 0;
 	float rotateAngle = 0;  //旋转角度
 	float radiusRotate = 0;  //旋转半径
-	Vector2 startPoint = Vector2.zero;  //旋转起始点
+	//Vector2 startPoint = Vector2.zero;  //旋转起始点
 	Vector2 centerPoint = Vector2.zero;   //旋转圆心点
 
 	float sum_angle = 0;//旋转总角度
@@ -136,7 +136,7 @@ public class CursorMove : MonoBehaviour {
 
 		radiusRotate = (start_position - center_point).magnitude;
 		cwFlag = cw;
-		startPoint = start_position;
+		//startPoint = start_position;
 		centerPoint = center_point;
 		rotateAngle = 0;
 		sum_angle = sumAngle;

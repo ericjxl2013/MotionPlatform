@@ -83,7 +83,8 @@ public class CursorMotion : IMotion{
 	//结构初始化
 	public void Init()
 	{
-		mm = GameObject.Find("MainScript").GetComponent<MotionManager>();
+		//mm = GameObject.Find("MainScript").GetComponent<MotionManager>();
+		mm = (MotionManager)GameObject.FindObjectOfType(typeof(MotionManager));
 		if(CurrentMotion == CursorMotionType.Line){
 			mm.st_CursorMove.MovingStart(StartPos, EndPos, MoveSpeed);
 		}
