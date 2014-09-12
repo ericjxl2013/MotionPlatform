@@ -2,6 +2,12 @@
 using System.Collections;
 using System.Data;
 using System.Data.Odbc;
+using System.IO;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Text;
+using System;
 
 public class MotionEditor : MonoBehaviour {
 
@@ -83,6 +89,9 @@ public class MotionEditor : MonoBehaviour {
 	string[] triggerKey_Mouse;
 
 	public static string mainCamera = "Main Camera";
+
+	//路径
+	public string[] path_Name;
 
 	bool isControl;
 	
@@ -248,6 +257,17 @@ public class MotionEditor : MonoBehaviour {
 		}
 		//设置列名
 		setColumnName(sheetname);
+
+		//获得路径名
+		string file_path = MotionPara.taskRootPath + MotionPara.taskName + "/"+ "PathControl.json";
+		string jsonText = @"";
+		jsonText += File.ReadAllText(file_path);
+		DataSet dataSet = JsonConvert.DeserializeObject<DataSet>(jsonText);
+		path_Name = new string[dataSet.Tables.Count];
+		for(int i=0; i<dataSet.Tables.Count; i++){
+			Debug.Log("Path "+i +","+dataSet.Tables[i].TableName);
+			path_Name[i] = dataSet.Tables[i].TableName;
+		}
 
 		hSbarValue = 0;
 		vSbarValue = 0;
@@ -827,6 +847,15 @@ public class MotionEditor : MonoBehaviour {
 						old_selectCategory = 0;
 					}
 				}
+
+				//选择路径
+				if(add_i == 14){
+					for(int m=0; m<path_Name.Length; m++){
+						if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ (3+m)*btn_height, 2*btn_width, btn_height), path_Name[m])){
+							tmp_TextFields[add_i] = path_Name[m];
+						}
+					}
+				}
 			}
 		}
 		else if(SheetNames[selectSheet] == "TIPS"){
@@ -913,6 +942,33 @@ public class MotionEditor : MonoBehaviour {
 					showAddWindow = false;
 					showAddSelection = false;
 					old_selectCategory = 0;
+				}
+			}
+
+			//显示位置
+			if(add_i == 2){
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, 2*btn_width, btn_height),"down_right--右下角")){
+					tmp_TextFields[add_i] = "down_right";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 4*btn_height, 2*btn_width, btn_height),"down_left--左下角")){
+					tmp_TextFields[add_i] = "down_left";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 5*btn_height, 2*btn_width, btn_height),"center--中间")){
+					tmp_TextFields[add_i] = "center";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 6*btn_height, 2*btn_width, btn_height),"top_right--右上角")){
+					tmp_TextFields[add_i] = "top_right";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 7*btn_height, 2*btn_width, btn_height),"top_left--左上角")){
+					tmp_TextFields[add_i] = "top_left";
+				}
+			}
+			if(add_i == 3 || add_i == 4){
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, 2*btn_width, btn_height),"true--是")){
+					tmp_TextFields[add_i] = "true";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 4*btn_height, 2*btn_width, btn_height),"false--否")){
+					tmp_TextFields[add_i] = "false";
 				}
 			}
 		}
@@ -1027,6 +1083,15 @@ public class MotionEditor : MonoBehaviour {
 						showAddWindow = false;
 						showAddSelection = false;
 						old_selectCategory = 0;
+					}
+				}
+
+				if(add_i == 6 || add_i == 10){
+					if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, 2*btn_width, btn_height),"true--是")){
+						tmp_TextFields[add_i] = "true";
+					}
+					if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 4*btn_height, 2*btn_width, btn_height),"false--否")){
+						tmp_TextFields[add_i] = "false";
 					}
 				}
 			}
@@ -1230,6 +1295,14 @@ public class MotionEditor : MonoBehaviour {
 							if(MotionPara.isEditor){
 								Debug.LogError("Group中没有空的列,请手动在Group中添加列.");
 							}
+						}
+					}
+				}
+				//选择路径
+				else if(add_i == 4){
+					for(int m=0; m<path_Name.Length; m++){
+						if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ (3+m)*btn_height, 2*btn_width, btn_height), path_Name[m])){
+							tmp_TextFields[add_i] = path_Name[m];
 						}
 					}
 				}

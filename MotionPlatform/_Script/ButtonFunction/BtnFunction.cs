@@ -77,6 +77,10 @@ public class BtnFunction  {
 	/// </summary>
 	static public void Initialize()
 	{
+		IDDic.Clear();
+		BtnDic.Clear();
+
+
 		//link = GameObject.Find("MainScript").GetComponent<RPCManager>();
 		excelPath = MotionPara.taskRootPath + MotionPara.taskName + "/FunctionManager.xls";
 		ExcelOperator excelOp = new ExcelOperator();

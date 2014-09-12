@@ -99,7 +99,7 @@ public class MotionManager : MonoBehaviour {
 	public float preProcess = 0f;  //按下鼠标前的进度
 
 	//TEST PARAMETER
-	//private Rect testRect = new Rect(50, 50, 360, 350);
+	private Rect testRect = new Rect(50, 50, 360, 350);
 	private bool isTeaching = true;
 	private string teaBtnStr = "教";
     
@@ -116,6 +116,7 @@ public class MotionManager : MonoBehaviour {
 	//测试：生成装配表数据
 	public bool generateZData = false;
 	string zn = "";
+	float[] znTime;
 	
 	void Awake ()
 	{
@@ -154,9 +155,9 @@ public class MotionManager : MonoBehaviour {
 		gameObject.AddComponent<CursorMove>();
 		st_CursorMove = gameObject.GetComponent<CursorMove>();
 
-		//PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
-		//PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
-		//PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
+		PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
+		PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
+		PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
 	}
 
 	// Use this for initialization
@@ -168,7 +169,7 @@ public class MotionManager : MonoBehaviour {
 
 	void OnGUI ()
 	{
-		//testRect = GUI.Window(110, testRect, TestWindow, "");
+		testRect = GUI.Window(110, testRect, TestWindow, "");
 		// Event guiEvent = Event.current;
 		// Debug.Log(guiEvent.type.ToString());
 	}
@@ -595,11 +596,16 @@ public class MotionManager : MonoBehaviour {
 			string[] contents = new string[3];
 			
 			DataTable sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + "CID" + ".xls", "ID");
+
+			znTime = new float[sheetTable.Rows.Count];
+
 			for(int k=sheetTable.Rows.Count-1; k>=0; k--){
 				DataRow dr = sheetTable.Rows[k];
 				contents[0] = "Z"+ (idList.Count- k);
 				contents[1] = dr[1].ToString();
 				contents[2] = dr[2].ToString();
+
+				znTime[k] = float.Parse(contents[2]);
 				
 				ExcelOperator ewo = new ExcelOperator();
 				if(contents[0] != "Z1"){
@@ -626,7 +632,7 @@ public class MotionManager : MonoBehaviour {
 					          , Application.dataPath + "/Resources/" + taskName + "/Z/"+ zn+ ".xls"
 					          , false);
 				}
-				//生成ZN中sheet "MAIN", "CAMERA", "TIPS", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"
+				//生成ZN中sheet "MAIN", "CAMERA", "TIPS", "CURSORMOVE", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"
 				ExcelOperator ewo = new ExcelOperator();
 				DataRow dr;
 				//MAIN
@@ -930,6 +936,19 @@ public class MotionManager : MonoBehaviour {
 								addContent[9] = addMotionTime.ToString();
 
 								ewo.AddData(MotionPara.dataRootPath + "CID", "3DMAX", addContent);
+
+								//装配表数据生成ZID.xls的3DMAX
+								if(generateZData){
+									//装配表文件名
+									addContent[1] = zn;
+
+									//
+									addContent[8] = (znTime[i] - addMotionTime).ToString();
+									addContent[9] = (znTime[i] - tmp_addMotionTime).ToString();
+									
+									ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/ZID", "3DMAX", addContent);
+								}
+
 								maxNumber++;
 							}
 						}
@@ -1270,7 +1289,7 @@ public class MotionManager : MonoBehaviour {
 					//1.先判断目标位置是否是按键
 					if(cursormoveAdministrator.isButton){
 						//单击
-						if(!PanelButton.btnType[cameRowData[11].ToString()]){
+						if(!PanelButton.btnType[cameRowData[3].ToString()]){
 							TriggerManager.GUIButtonEvent(cameRowData[11].ToString());//单击响应
 							PanelButton.Btn_Function(cameRowData[11].ToString());
 							
