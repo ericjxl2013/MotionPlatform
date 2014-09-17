@@ -337,6 +337,17 @@ public class EditorManager : MonoBehaviour {
 			//	motionTypeStr = "装动画";
 				
 			//}
+
+			if (FuncPara.curentMode != Movement.Zhuang)
+			{
+				motionTypeStr = "装动画";
+				FuncPara.curentMode = Movement.Zhuang;
+				
+				currentEditorExcel = "Z1";
+				st_Manager.TaskInitialize(MotionPara.taskName);
+				st_Manager.dragActive = true;
+				st_Manager.preProcess = st_Manager.TotalValue;
+			}
 		}
 		if (GUI.Button(new Rect(140, 290, 40, 30), "原理"))
 		{
@@ -378,6 +389,11 @@ public class EditorManager : MonoBehaviour {
 			//	motionStateStr = "考";
 
 			//}
+			if (FuncPara.currentMotion != MotionState.Exercising)
+			{
+				motionStateStr = "考";
+				FuncPara.currentMotion = MotionState.Examining;
+			}
 		}
 		GUI.contentColor = Color.white;
 	}
@@ -540,7 +556,22 @@ public class EditorManager : MonoBehaviour {
 	//装配表自动生成
 	void AssembleCreate()
 	{
-		GUI.Label(new Rect(30, 80, 300, 20), "请程序吃糖再改:");
+		GUI.contentColor = Color.white;
+		GUI.skin.label.fontSize = 13;
+		GUI.skin.label.normal.textColor = Color.white;
+		GUI.Label(new Rect(30, 80, 300, 20), "装配表信息管理:");
+		GUI.Label(new Rect(40, 110, 130, 20), "开始生成装配表信息:");
+		if (GUI.Button(new Rect(160, 110, 140, 20), "生成装配表信息"))
+		{
+			if (MotionPara.MotionActive)
+			{
+				st_Manager.StopButton();
+			}
+			MotionPara.PauseControl = false;
+			st_Manager.computeTime = true;
+			st_Manager.generateZData = true;
+			StartCoroutine(st_Manager.MainEntrance(0, 0));
+		}
 		
 	}
 

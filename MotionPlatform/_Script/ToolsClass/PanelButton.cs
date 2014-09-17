@@ -54,7 +54,7 @@ public class PanelButton : MonoBehaviour {
 		if(btnWindow.ContainsKey(btn_name)){
 			Rect rec1 = btnWindow[btn_name];
 			Rect rec2 = btnRect[btn_name];
-			Vector2 result = new Vector2(rec1.x+rec2.x, rec1.y+rec2.y);
+			Vector2 result = new Vector2(rec1.x+rec2.x+rec2.width/2f, rec1.y+rec2.y+rec2.height/2f);
 			is_right = true;
 			return result;
 		}
