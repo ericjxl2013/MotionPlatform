@@ -12,6 +12,7 @@ public class VisualEditor : Editor
 	GUIStyle style = new GUIStyle();
 	public static int count = 0;
 	private const float SLIDERVALUE = 100f;
+	private string isRelativePathStr = "加载相对路径";
 
 	private static GUIContent
 		insertContent = new GUIContent("+", "增加控制顶点"),
@@ -176,7 +177,7 @@ public class VisualEditor : Editor
 				{
 					_target.CameraView = _target.cameraViewList[i];
 				}
-				if (_target.isCamera && _target.camera != null)
+				if (_target.isCamera && _target.camera != null && i != 0)
 				{
 					if (_target.isLookAt && _target.lookAt != null)
 					{
@@ -306,16 +307,28 @@ public class VisualEditor : Editor
 			GetInitialState();
 		}
 
-		//TODO
 		if (GUILayout.Button("控制点信息保存"))
 		{
             JsonWirter();
 		}
 
-        if (GUILayout.Button("加载控制点信息"))
-        {
-            JsonLoad();
-        }
+		EditorGUILayout.BeginHorizontal();
+		EditorGUILayout.PrefixLabel("相对路径");
+		_target.isRelativePos = EditorGUILayout.Toggle(_target.isRelativePos);
+		if (_target.isRelativePos)
+			isRelativePathStr = "加载相对路径";
+		else
+			isRelativePathStr = "加载绝对路径";
+		if (GUILayout.Button(isRelativePathStr, GUILayout.MaxWidth(260f)))
+		{
+			JsonLoad(_target.isRelativePos);
+		}
+		EditorGUILayout.EndHorizontal();
+
+		//if (GUILayout.Button("加载控制点信息"))
+		//{
+		//	JsonLoad();
+		//}
 
 		//进度条控制
 		//路径是否可见
@@ -498,23 +511,9 @@ public class VisualEditor : Editor
             {
                 _target.CameraView = _target.cameraViewList[0];
             }
-            if (_target.isCamera && _target.camera != null)
-            {
-                if (_target.isLookAt && _target.lookAt != null)
-                {
-                    _target.transform.LookAt(_target.lookAt);
-                }
-                else
-                {
-                    _target.transform.eulerAngles = _target.rotationList[0];
-                }
-            }
-            else
-            {
-                _target.transform.eulerAngles = _target.rotationList[0];
-            }
+            _target.transform.eulerAngles = _target.rotationList[0];
             JsonOperator jsonOp = new JsonOperator();
-            string[] nameArray = new string[] { "POSITION", "EULERANGLE", "VIEW" };
+            string[] nameArray = new string[] { "POSITION", "EULERANGLE", "VIEW", "ABSOLUTEPOS", "ABSOLUTEANGLE" };
             string[,] contentArray = new string[nameArray.Length, _target.nodeCount];
             GameObject writerEmpty = new GameObject();
             writerEmpty.name = "JsonWriter_empty";
@@ -529,6 +528,10 @@ public class VisualEditor : Editor
                 contentArray[1, i] = writerEmpty.transform.localEulerAngles.x + "," + writerEmpty.transform.localEulerAngles.y + "," + writerEmpty.transform.localEulerAngles.z;
                 //视域信息写入
                 contentArray[2, i] = _target.cameraViewList[i].ToString();
+				//绝对位置信息写入
+				contentArray[3, i] = writerEmpty.transform.position.x + "," + writerEmpty.transform.position.y + "," + writerEmpty.transform.position.z;
+				//绝对角度信息写入
+				contentArray[4, i] = writerEmpty.transform.eulerAngles.x + "," + writerEmpty.transform.eulerAngles.y + "," + writerEmpty.transform.eulerAngles.z;
             }
             GameObject.DestroyImmediate(writerEmpty);
             jsonOp.JsonWriter(filePath, _target.pathName, nameArray, contentArray, false);
@@ -546,7 +549,7 @@ public class VisualEditor : Editor
     }
 
     //Json文件加载
-    private void JsonLoad()
+    private void JsonLoad(bool is_relative)
     {
         string filePath = Application.dataPath + "/_TempExcel/TempPathInfo.json";
         if (File.Exists(filePath))
@@ -558,48 +561,57 @@ public class VisualEditor : Editor
                 Debug.LogError(_target.pathName + ", 该路径名称不存在！");
                 return;
             }
-            //移动到起点
-            _target.transform.position = _target.nodes[0];
-            if (_target.camera != null)
-            {
-                _target.CameraView = _target.cameraViewList[0];
-            }
-            if (_target.isCamera && _target.camera != null)
-            {
-                if (_target.isLookAt && _target.lookAt != null)
-                {
-                    _target.transform.LookAt(_target.lookAt);
-                }
-                else
-                {
-                    _target.transform.eulerAngles = _target.rotationList[0];
-                }
-            }
-            else
-            {
-                _target.transform.eulerAngles = _target.rotationList[0];
-            }
-            GameObject loadEmpty = new GameObject();
-            loadEmpty.name = "JsonLoad_empty";
-            loadEmpty.transform.parent = _target.transform;
-            _target.nodes.Clear();
-            _target.rotationList.Clear();
-            _target.cameraViewList.Clear();
-            _target.displayInfoList.Clear();
-            _target.handleDisplay.Clear();
-            for (int i = 0; i < jsonTable.Rows.Count; i++)
-            {
-                loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
-                loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
-                _target.nodes.Add(loadEmpty.transform.position);
-                _target.rotationList.Add(loadEmpty.transform.eulerAngles);
-                _target.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
-                _target.displayInfoList.Add(false);
-                _target.handleDisplay.Add(true);
-            }
+			if (is_relative)  //加载相对路径
+			{
+				GameObject loadEmpty = new GameObject();
+				loadEmpty.name = "JsonLoad_empty";
+				loadEmpty.transform.parent = _target.transform;
+				_target.nodes.Clear();
+				_target.rotationList.Clear();
+				_target.cameraViewList.Clear();
+				_target.displayInfoList.Clear();
+				_target.handleDisplay.Clear();
+				for (int i = 0; i < jsonTable.Rows.Count; i++)
+				{
+					loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
+					loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
+					_target.nodes.Add(loadEmpty.transform.position);
+					_target.rotationList.Add(loadEmpty.transform.eulerAngles);
+					_target.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
+					_target.displayInfoList.Add(false);
+					_target.handleDisplay.Add(true);
+				}
+				GameObject.DestroyImmediate(loadEmpty);
+			}
+			else  //加载绝对路径
+			{
+				if (jsonTable.Columns.Count < 5) {
+					Debug.LogError(_target.pathName + ", 该路径名称不存在绝对位置，请检查相应的数据表格！");
+					return;
+				}
+				_target.nodes.Clear();
+				_target.rotationList.Clear();
+				_target.cameraViewList.Clear();
+				_target.displayInfoList.Clear();
+				_target.handleDisplay.Clear();
+				for (int i = 0; i < jsonTable.Rows.Count; i++)
+				{
+					_target.nodes.Add(ConvertToVector3((string)jsonTable.Rows[i][3].ToString()));
+					_target.rotationList.Add(ConvertToVector3((string)jsonTable.Rows[i][4].ToString()));
+					_target.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
+					_target.displayInfoList.Add(false);
+					_target.handleDisplay.Add(true);
+				}
+				//移动到起点
+				//_target.transform.position = _target.nodes[0];
+				//_target.transform.eulerAngles = _target.rotationList[0];
+				//if (_target.camera != null)
+				//{
+				//	_target.CameraView = _target.cameraViewList[0];
+				//}
+			}
             _target.nodeCount = _target.nodes.Count;
             AngleOptimization();
-            GameObject.DestroyImmediate(loadEmpty);
         }
         else
         {
