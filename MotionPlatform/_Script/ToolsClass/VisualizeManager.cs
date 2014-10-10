@@ -67,6 +67,7 @@ public class VisualizeManager : MonoBehaviour {
     public bool isActive = false;  //是否是激活状态
     public Rect btnRect = new Rect(0, 0, 100f, 50);
     public int currentNum = 0;
+	public bool isRelativePos = true;  //是否加载相对路径
     
 	void OnDrawGizmosSelected()
 	{
