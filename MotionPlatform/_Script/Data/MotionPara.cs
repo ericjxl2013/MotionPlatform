@@ -4,6 +4,10 @@ using System.Collections.Generic;
 
 public class MotionPara
 {
+
+	//当前设备名，用于索引到相应的引出线信息
+	public static string deviceName = "testEquipment";
+
 	//当前任务名称，用于索引到相应的资源文件
 	public static string taskName = "";
 	//当前任务的根目录

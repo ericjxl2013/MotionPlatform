@@ -18,20 +18,20 @@ public enum WindowColor {Blue, LightBlue, Orange, Pink, Purple, Yellow, Black, B
 
 public class TipsWindow : MonoBehaviour {
 	
-	// FunctionManager st_FuncManager;
+	 FunctionManager st_FuncManager;
 
 	Rect tipsRect;
 	const float LINT_HEIGHT = 19f;
 	const float ORIGIN_HEIGHT = 60f;
 	public GUIText tipsText;  //GUI Text用于字符宽度计算
 	string displayString = "";  //提示信息内容
-	//int stringCount = 0;  //提示信息行数
-	// Rect helpRect;
-	// int helpStrCount = 0;  //帮助信息行数
+	int stringCount = 0;  //提示信息行数
+	 Rect helpRect;
+	 int helpStrCount = 0;  //帮助信息行数
 	
-	// Rect exerciseRect;  //练习时出现的提示窗口
+	 Rect exerciseRect;  //练习时出现的提示窗口
 	
-	// Rect componentsRect;  //部件提示窗口
+	 Rect componentsRect;  //部件提示窗口
 	
 	// Use this for initialization
 	void Awake () {
@@ -45,23 +45,31 @@ public class TipsWindow : MonoBehaviour {
 		}
 		tipsText.font = (Font)Resources.Load ("Font/msyh");
 		tipsText.fontSize = 15;
-		// helpRect = new Rect(100f, 100f, 249f, 60f);
-		// exerciseRect = new Rect(0, 0, 305, 225); 
-		// exerciseRect.x = (Screen.width - exerciseRect.width) / 2f;
-		// exerciseRect.y = (Screen.height - exerciseRect.height) / 2f;
-		// componentsRect = new Rect(100f, 100f, 160f, 60f);
+		 helpRect = new Rect(100f, 100f, 249f, 60f);
+		 exerciseRect = new Rect(0, 0, 305, 225); 
+		 exerciseRect.x = (Screen.width - exerciseRect.width) / 2f;
+		 exerciseRect.y = (Screen.height - exerciseRect.height) / 2f;
+		 componentsRect = new Rect(100f, 100f, 160f, 60f);
 	}
 	
 	void Start () {
-		// st_FuncManager = gameObject.GetComponent<FunctionManager>();
+		 st_FuncManager = gameObject.GetComponent<FunctionManager>();
 	}
 	
 	void OnGUI () {
-		
+
+		GUI.skin = FuncPara.defaultSkin;
+		GUI.skin.label.font = FuncPara.defaultFont;
+		GUI.skin.label.fontSize = 13;
+		GUI.skin.label.normal.textColor = Color.white;
+		GUI.skin.button.font = FuncPara.defaultFont;
+		GUI.skin.button.fontSize = 13;
+		GUI.skin.button.normal.textColor = Color.white;
+
 		//提示窗口
 		if(FuncPara.tipsWindow){
 			tipsRect = GUI.Window(20, tipsRect, MyTipsWindow, "", FuncPara.sty_TipsWindow);  //提示信息
-			GUI.BringWindowToFront(20);
+//			GUI.BringWindowToFront(20);
 		}
 		
 		// //帮助信息窗口
@@ -78,19 +86,19 @@ public class TipsWindow : MonoBehaviour {
 		// 	}
 		// }
 		
-		// //部件提示窗口
-		// if(FuncPara.componentTips){
-		// 	if(FuncPara.componentDisplay){
-		// 		componentsRect.x = Input.mousePosition.x + 12f;
-		// 		componentsRect.y = Screen.height - Input.mousePosition.y + 4f;
-		// 		if(componentsRect.x + componentsRect.width > Screen.width)
-		// 			componentsRect.x = Screen.width - componentsRect.width;
-		// 		if(componentsRect.y + componentsRect.height > Screen.height)
-		// 			componentsRect.y = Screen.height - componentsRect.height;
-		// 		componentsRect = GUI.Window(29, componentsRect, ComponentsWindow, "", FuncPara.sty_PartsWindow);  //部件提示信息
-		// 		GUI.BringWindowToFront(29);
-		// 	}
-		// }
+		 //部件提示窗口
+		 if(FuncPara.componentTips){
+		 	if(FuncPara.componentDisplay){
+		 		componentsRect.x = Input.mousePosition.x + 12f;
+		 		componentsRect.y = Screen.height - Input.mousePosition.y + 4f;
+		 		if(componentsRect.x + componentsRect.width > Screen.width)
+		 			componentsRect.x = Screen.width - componentsRect.width;
+		 		if(componentsRect.y + componentsRect.height > Screen.height)
+		 			componentsRect.y = Screen.height - componentsRect.height;
+		 		componentsRect = GUI.Window(29, componentsRect, ComponentsWindow, "", FuncPara.sty_PartsWindow);  //部件提示信息
+		 		GUI.BringWindowToFront(29);
+		 	}
+		 }
 		
 		// GUI.skin.window = FuncPara.skin_hiMenu.window;
 		
@@ -100,6 +108,8 @@ public class TipsWindow : MonoBehaviour {
 		// 	GUI.BringWindowToFront(1);
 		// }
 		// GUI.skin = null;
+
+		GUI.skin = null;
 	}
 	
 	void MyTipsWindow(int WindowID){
@@ -150,18 +160,18 @@ public class TipsWindow : MonoBehaviour {
 // //		GUI.DragWindow();
 // 	}
 	
-	// void ComponentsWindow(int WindowID)
-	// {
-	// 	GUI.depth = 1;
-	// 	GUI.skin.label = FuncPara.defaultSkin.label;
-	// 	GUI.skin.label.alignment = TextAnchor.UpperCenter;
-	// 	GUI.skin.label.font = FuncPara.defaultFont;
-	// 	GUI.skin.label.fontSize = 15;
-	// 	GUI.skin.label.normal.background = null;
-	// 	GUI.skin.label.normal.textColor = Color.black;
-	// 	GUI.Label(new Rect(0f, 15f, 160f, 40f), FuncPara.componentString);
-	// 	GUI.skin.label.alignment = TextAnchor.UpperLeft;  //要回到默认对齐模式，不然会影响到其余的排版
-	// }
+	 void ComponentsWindow(int WindowID)
+	 {
+	 	GUI.depth = 1;
+	 	GUI.skin.label = FuncPara.defaultSkin.label;
+	 	GUI.skin.label.alignment = TextAnchor.UpperCenter;
+	 	GUI.skin.label.font = FuncPara.defaultFont;
+	 	GUI.skin.label.fontSize = 15;
+	 	GUI.skin.label.normal.background = null;
+	 	GUI.skin.label.normal.textColor = Color.black;
+	 	GUI.Label(new Rect(0f, 15f, 160f, 40f), FuncPara.componentString);
+	 	GUI.skin.label.alignment = TextAnchor.UpperLeft;  //要回到默认对齐模式，不然会影响到其余的排版
+	 }
 	
 	/// <summary>
 	/// 显示并格式化提示信息.
@@ -349,29 +359,29 @@ public class TipsWindow : MonoBehaviour {
 	// /// <summary>
 	// /// 帮助提示信息格式化.
 	// /// </summary>
-	// public void HelpInfoFormat(){
-	// 	string tempStr = "";
-	// 	int rowCount = 0;
-	// 	for(int i = 0; i < FuncPara.helpString.Length; i++){
-	// 		if(FuncPara.helpString[i] == '\n'){
-	// 			rowCount++;
-	// 			tempStr = "";
-	// 			continue;
-	// 		}
-	// 		tempStr += FuncPara.helpString[i].ToString();
-	// 		tipsText.text = tempStr;
-	// 		if(tipsText.GetScreenRect().width > 220f){  //超过了一行
-	// 			rowCount++;
-	// 			tempStr = "";
-	// 		}
-	// 	}
-	// 	if(tempStr != "")
-	// 		rowCount++;
-	// 	if(rowCount < 3)
-	// 		helpRect.height = ORIGIN_HEIGHT;
-	// 	else
-	// 		helpRect.height = ORIGIN_HEIGHT + (rowCount - 2) * LINT_HEIGHT;
-	// 	helpStrCount = rowCount;
-	// }
+	 public void HelpInfoFormat(){
+	 	string tempStr = "";
+	 	int rowCount = 0;
+	 	for(int i = 0; i < FuncPara.helpString.Length; i++){
+	 		if(FuncPara.helpString[i] == '\n'){
+	 			rowCount++;
+	 			tempStr = "";
+	 			continue;
+	 		}
+	 		tempStr += FuncPara.helpString[i].ToString();
+	 		tipsText.text = tempStr;
+	 		if(tipsText.GetScreenRect().width > 220f){  //超过了一行
+	 			rowCount++;
+	 			tempStr = "";
+	 		}
+	 	}
+	 	if(tempStr != "")
+	 		rowCount++;
+	 	if(rowCount < 3)
+	 		helpRect.height = ORIGIN_HEIGHT;
+	 	else
+	 		helpRect.height = ORIGIN_HEIGHT + (rowCount - 2) * LINT_HEIGHT;
+	 	helpStrCount = rowCount;
+	 }
 	
 }

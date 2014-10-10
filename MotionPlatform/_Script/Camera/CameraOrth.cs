@@ -3,6 +3,8 @@ using System.Collections;
 
 public class CameraOrth : MonoBehaviour 
 {
+	public static bool camera_move = true;
+
 	Camera mainCamera;  //主摄像机
 	public Transform upDownTrans;  //鼠标上下方向拖动旋转时的参考物体（位置根据具体的被旋转物体基本固定）
 	public Transform rightLeftTrans;  //鼠标左右方向拖动旋转时的参考物体（位置会随摄像机移动而移动，在初始化时应设置在合适位置，即物体在摄像机中心时该空物体也在物体中心）
@@ -53,6 +55,8 @@ public class CameraOrth : MonoBehaviour
 	
 	void LateUpdate()
 	{
+		if(CameraOrth.camera_move){
+
 		//中键旋转		
 		if(Input.GetMouseButton(2) && !Input.GetMouseButton(1))	
 		{
@@ -101,6 +105,8 @@ public class CameraOrth : MonoBehaviour
 			{
 				CameraView = 100f;
 			}
-		}		
+		}
+
+		}
 	}
 }

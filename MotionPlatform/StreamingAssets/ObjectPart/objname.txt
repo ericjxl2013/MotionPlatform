@@ -1,0 +1,4 @@
+﻿Capsule,胶囊体
+Cube,立方体
+Cylinder,圆柱体
+Sphere,球体

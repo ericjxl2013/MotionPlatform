@@ -19,6 +19,8 @@ using System.Data;
 
 public class EditorManager : MonoBehaviour {
 
+	public static bool show;
+
 	MotionManager st_Manager;
 	MotionEditor st_Editor;
 
@@ -56,11 +58,18 @@ public class EditorManager : MonoBehaviour {
 		toolbarInt = 1;
 		toolbarStrings = new string[] { "信息初始化", "运动控制界面", "时间和位置信息" , "装配表生成界面", "运动表格检查"};
 		sliderRect = new Rect(40, 190, 300, 10);
+
+		show = false;
 	}
 
 	void OnGUI()
 	{
-		editorRect = GUI.Window(111, editorRect, EditWindow, "运动信息填写窗口");
+		GUI.skin = FuncPara.defaultSkin;
+		if(show){
+			editorRect = GUI.Window(111, editorRect, EditWindow, "运动信息填写窗口");
+		}
+
+		GUI.skin = null;
 	}
 
 	void EditWindow(int WindowID)
@@ -523,6 +532,7 @@ public class EditorManager : MonoBehaviour {
 		File.Copy(Application.dataPath + "/StreamingAssets/ExcelMotionData/ToolsVariable.xls"
 				 , Application.dataPath + "/Resources/" + taskName + "/ToolsVariable.xls"
 				  , false);
+
 	}
 
 	//时间和位置信息管理

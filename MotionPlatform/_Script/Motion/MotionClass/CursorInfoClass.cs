@@ -140,10 +140,14 @@ public class CursorMotion : IMotion{
 
 public class CursorInfoManager : BaseCompute {
 	private CursorMotion _cursorMotion;
+
+	PanelButton panelButton;
 	
 	public CursorInfoManager ()
 	{
 		_cursorMotion = new CursorMotion();
+
+		panelButton = GameObject.Find("MainScript").GetComponent<PanelButton>();
 	}
 	public CursorMotion CursorInfoGet_Test(){
 		_cursorMotion.CurrentMotion = CursorMotionType.Line;
@@ -198,7 +202,7 @@ public class CursorInfoManager : BaseCompute {
 					}
 				}
 				else{//Button
-					_cursorMotion.RotateCenter = PanelButton.ButtonLocation((string)cursor_row[5].ToString(), ref is_right);
+					_cursorMotion.RotateCenter = panelButton.ButtonLocation((string)cursor_row[5].ToString(), ref is_right);
 					if(!is_right){
 						if(MotionPara.isEditor){
 							Debug.LogError(ErrorLocation.Locate("CURSORMOVE", "ROTATECENTER", id) + "，鼠标贴图旋转的旋转中心出错！");
@@ -236,7 +240,7 @@ public class CursorInfoManager : BaseCompute {
 					}
 				}
 				else{//Button
-					_cursorMotion.StartPos = PanelButton.ButtonLocation(startPos, ref is_right);
+					_cursorMotion.StartPos = panelButton.ButtonLocation(startPos, ref is_right);
 					if(!is_right){
 						if(MotionPara.isEditor){
 							Debug.LogError(ErrorLocation.Locate("CURSORMOVE", "STARTPOSITION", id) + "，鼠标贴图运动的初始位置出错！");
@@ -288,7 +292,7 @@ public class CursorInfoManager : BaseCompute {
 						}
 					}
 					else{//Button
-						_cursorMotion.EndPos = PanelButton.ButtonLocation(endPos, ref is_right);
+						_cursorMotion.EndPos = panelButton.ButtonLocation(endPos, ref is_right);
 						_cursorMotion.isButton = true;
 						if(!is_right){
 							if(MotionPara.isEditor){
@@ -296,17 +300,6 @@ public class CursorInfoManager : BaseCompute {
 							}
 							return _cursorMotion;
 						}
-
-//						string step_longpress = (string)cursor_row[9].ToString();
-//						if(step_longpress != ""){
-//							_cursorMotion.Step_LongPress = FloatConversion(step_longpress, ref is_right);
-//							if(!is_right){
-//								if(MotionPara.isEditor){
-//									Debug.LogError(ErrorLocation.Locate("CURSORMOVE", "LONGPRESS", id) + "，鼠标贴图直线运动的长按按钮的状态出错！");
-//								}
-//								return _cursorMotion;
-//							}
-//						}
 					}
 				}
 			}

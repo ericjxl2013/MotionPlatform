@@ -290,6 +290,34 @@ public class MotionClass : BaseCompute
 		return resultFlag;
 	}
 
+	//引出线表格信息提取
+	public bool DoLabelsAdd(DataRow tips_row, string id, DataTable group_table)
+	{
+		bool isRight = true;
+		DoLabelInfoManager tipsMana = new DoLabelInfoManager();
+		DoLabelMotion tipsExcel = tipsMana.DoLabelInfoGet(tips_row, id, ref isRight);
+		if(!isRight){
+			return false;
+		}
+		_motionList.Add(tipsExcel);
+		simpleID.Add(simpleID.Count, id);
+		return true;
+	}
+
+	//鼠标贴图表格信息提取
+	public bool CURSORMOVEAdd(DataRow tips_row, string id, DataTable group_table)
+	{
+		bool isRight = true;
+		CursorInfoManager tempInfoManager = new CursorInfoManager();
+		CursorMotion tipsExcel = tempInfoManager.CursorInfoGet(tips_row, id, ref isRight);
+		if(!isRight){
+			return false;
+		}
+		_motionList.Add(tipsExcel);
+		simpleID.Add(simpleID.Count, id);
+		return true;
+	}
+
 	//List Clear
 	public void Clear()
 	{

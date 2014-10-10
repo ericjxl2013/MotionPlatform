@@ -1106,27 +1106,13 @@ public class ExcelInfoManager : BaseCompute
 			GameObject loadEmpty = new GameObject();
 			loadEmpty.name = "JsonLoad_empty";
 			loadEmpty.transform.parent = parent_trans;
-			if (FuncPara.curentMode == Movement.Zhuang)
+			for (int i = 0; i < jsonTable.Rows.Count; i++)
 			{
-				for (int i = jsonTable.Rows.Count - 1; i >= 0; i--)
-				{
-					loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
-					loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
-					crSpline.controlPoints.Add(loadEmpty.transform.position);
-					crSpline.rotationList.Add(loadEmpty.transform.eulerAngles);
-					crSpline.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
-				}
-			}
-			else
-			{
-				for (int i = 0; i < jsonTable.Rows.Count; i++)
-				{
-					loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
-					loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
-					crSpline.controlPoints.Add(loadEmpty.transform.position);
-					crSpline.rotationList.Add(loadEmpty.transform.eulerAngles);
-					crSpline.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
-				}
+				loadEmpty.transform.localPosition = ConvertToVector3((string)jsonTable.Rows[i][0].ToString());
+				loadEmpty.transform.localEulerAngles = ConvertToVector3((string)jsonTable.Rows[i][1].ToString());
+				crSpline.controlPoints.Add(loadEmpty.transform.position);
+				crSpline.rotationList.Add(loadEmpty.transform.eulerAngles);
+				crSpline.cameraViewList.Add(float.Parse((string)jsonTable.Rows[i][2].ToString()));
 			}
 			GameObject.DestroyImmediate(loadEmpty);
 		}

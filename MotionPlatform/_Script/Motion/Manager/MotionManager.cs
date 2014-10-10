@@ -21,7 +21,7 @@ using System.Text;
 public class MotionManager : MonoBehaviour {
 
 	//脚本变量
-	InterfaceManager st_Interface;
+	public InterfaceManager st_Interface;
 	LocationManager st_Location;
 	TriggerManager st_Trigger;
 	//鼠标贴图移动
@@ -56,10 +56,12 @@ public class MotionManager : MonoBehaviour {
 	public string tableNum = "1";
 	[HideInInspector]
 	public string rowNum = "2";
+	//当前表格的MAIN sheet的行数
+	public int mainRows = 0;
 	//摄像机信息存储
 	private CameraMotion cameraAdministrator = new CameraMotion();
 	//Tips信息存储
-	private TipsMotion tipsAdministrator = new TipsMotion();
+	public TipsMotion tipsAdministrator = new TipsMotion();
 	//CursorMOve信息存储
 	private CursorMotion cursormoveAdministrator = new CursorMotion();
 	//运动控制类
@@ -99,7 +101,7 @@ public class MotionManager : MonoBehaviour {
 	public float preProcess = 0f;  //按下鼠标前的进度
 
 	//TEST PARAMETER
-	private Rect testRect = new Rect(50, 50, 360, 350);
+	public Rect testRect = new Rect(50, 50, 360, 350);
 	private bool isTeaching = true;
 	private string teaBtnStr = "教";
     
@@ -117,6 +119,9 @@ public class MotionManager : MonoBehaviour {
 	public bool generateZData = false;
 	string zn = "";
 	float[] znTime;
+
+	//PanelButton
+	PanelButton panelButton;
 	
 	void Awake ()
 	{
@@ -155,9 +160,11 @@ public class MotionManager : MonoBehaviour {
 		gameObject.AddComponent<CursorMove>();
 		st_CursorMove = gameObject.GetComponent<CursorMove>();
 
-		PanelButton.add(testRect, new Rect(310, 60, 50, 50), "TEST01", false);
-		PanelButton.add(testRect, new Rect(310, 120, 50, 50), "TEST02", true);
-		PanelButton.add(testRect, new Rect(310, 180, 50, 50), "TEST03", true);
+		//PanelButton
+		gameObject.AddComponent<PanelButton>();
+		panelButton = gameObject.GetComponent<PanelButton>();
+	
+
 	}
 
 	// Use this for initialization
@@ -166,10 +173,26 @@ public class MotionManager : MonoBehaviour {
 		
 	}
 
+	public void testBtn1(){
+		Debug.Log("testBtn1");
+		GameObject.Find("Cube_1").transform.Translate(new Vector3(0,0,2));
+	}
+	public void testBtn2(){
+		Debug.Log("testBtn2");
+		GameObject.Find("Cube_2").transform.Translate(new Vector3(0,0,1)*0.02f);
+	}
+	public void testBtn3(){
+		Debug.Log("testBtn3");
+		GameObject.Find("Cube_2").transform.Translate(new Vector3(0,0,-1)*0.02f);
+	}
+
 
 	void OnGUI ()
 	{
-		testRect = GUI.Window(110, testRect, TestWindow, "");
+		GUI.skin = FuncPara.defaultSkin;
+		if(FuncPara.taskActive == Task.Task3){
+			testRect = GUI.Window(110, testRect, TestWindow, "");
+		}
 		// Event guiEvent = Event.current;
 		// Debug.Log(guiEvent.type.ToString());
 	}
@@ -232,20 +255,23 @@ public class MotionManager : MonoBehaviour {
 		if (GUI.Button(new Rect(310, 60, 50, 50), "Test01") && BtnFunction.Allow("TEST01"))
 		{
 			TriggerManager.GUIButtonEvent("TEST01");
-			PanelButton.Btn_Function("TEST01");
+//			PanelButton.Btn_Function("TEST01");
+			testBtn1();
 		}
 
 		//测试按钮2
 		if (GUI.RepeatButton(new Rect(310, 120, 50, 50), "Test02") && BtnFunction.Allow("TEST02"))
 		{
 			TriggerManager.GUIButtonEvent("TEST02");
-			PanelButton.Btn_Function("TEST02");
+//			PanelButton.Btn_Function("TEST02");
+			testBtn2();
 		}
 		//测试按钮3
 		if (GUI.RepeatButton(new Rect(310, 180, 50, 50), "Test03") && BtnFunction.Allow("TEST03"))
 		{
 			TriggerManager.GUIButtonEvent("TEST03");
-			PanelButton.Btn_Function("TEST03");
+//			PanelButton.Btn_Function("TEST03");
+			testBtn3();
 		}
 
 		GUI.skin.label.normal.textColor = Color.white;
@@ -295,9 +321,7 @@ public class MotionManager : MonoBehaviour {
 			st_Location.LocationSet(setNode, "0");
 		}
 
-		if(FuncPara.currentMotion != MotionState.Teaching){
-			GUI.DragWindow();
-		}
+		GUI.DragWindow();
 	}
 
 	//播放按钮
@@ -322,8 +346,6 @@ public class MotionManager : MonoBehaviour {
 	//暂停按钮
 	public void PauseButton()
 	{
-
-
 		motionAdministrator.Pause(!MotionPara.PauseControl);
 	}
 
@@ -373,6 +395,9 @@ public class MotionManager : MonoBehaviour {
 	//播放过程停止
 	public void StopButton()
 	{
+
+		Debug.Log("StopButton");
+
 		//Camera
 		cameraFlag = false;
 		MotionPara.MotionActive = false;
@@ -401,6 +426,8 @@ public class MotionManager : MonoBehaviour {
 		MotionPara.PauseControl = false;
 		//设定要初始状态
 		SetLocation(1, "2");
+
+		FuncPara.outlineOn = false;
 	}
 
 	//场景运动物体位置设定
@@ -579,6 +606,9 @@ public class MotionManager : MonoBehaviour {
 	//平台运动主入口函数
 	public IEnumerator MainEntrance(int id_number, int row_number)
 	{
+
+		Debug.Log("MainEntrance:"+ id_number+ ","+ row_number);
+
 		//ID号准确性检查
 		if(id_number >= idList.Count || id_number < 0){
 			Debug.LogError("输入的ID号超出范围, 请检查输入的ID号或者相应的ID表.");
@@ -586,7 +616,7 @@ public class MotionManager : MonoBehaviour {
 		}
 		//根据ID加载功能表格
 		ExcelOperator excelReader = new ExcelOperator();
-		string[] sheetArray = new string[] {"MAIN", "CAMERA", "TIPS", "CURSORMOVE", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"};
+		string[] sheetArray = new string[] {"MAIN", "CAMERA", "TIPS", "XIAN", "CURSORMOVE", "EXCEL", "Group", "3DMAX", "TRIGGER", "PROGRAM"};
         //3DMAX信息读取
         maxNumber = 0;
 		bool readedMax = false;
@@ -734,6 +764,18 @@ public class MotionManager : MonoBehaviour {
 					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "PROGRAM", tmp_content);
 				}
 
+				//XIAN
+				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "XIAN");
+				for(int k=0; k<sheetTable.Rows.Count; k++){
+					dr = sheetTable.Rows[k];
+					string[] tmp_content = new string[sheetTable.Columns.Count];
+					for(int m=0; m<sheetTable.Columns.Count; m++){
+						tmp_content[m] = dr[m].ToString();
+					}
+					
+					ewo.AddData(MotionPara.taskRootPath + MotionPara.taskName + "/Z/"+ zn, "XIAN", tmp_content);
+				}
+
 				//TRIGGER
 				sheetTable = excelReader.ExcelReader(MotionPara.dataRootPath + idList[i] + ".xls", "TRIGGER");
 				for(int k=0; k<sheetTable.Rows.Count; k++){
@@ -774,6 +816,7 @@ public class MotionManager : MonoBehaviour {
 				motionDataSet.Tables["[MAIN$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[MAIN$]"].Columns["ID"]};
 				motionDataSet.Tables["[CAMERA$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[CAMERA$]"].Columns["ID"]};
 				motionDataSet.Tables["[TIPS$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[TIPS$]"].Columns["ID"]};
+				motionDataSet.Tables["[XIAN$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[XIAN$]"].Columns["ID"]};
 				motionDataSet.Tables["[CURSORMOVE$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[CURSORMOVE$]"].Columns["ID"]};
 				motionDataSet.Tables["[EXCEL$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[EXCEL$]"].Columns["ID"]};
 				motionDataSet.Tables["[3DMAX$]"].PrimaryKey = new DataColumn[] {motionDataSet.Tables["[3DMAX$]"].Columns["ID"]};
@@ -788,7 +831,12 @@ public class MotionManager : MonoBehaviour {
 						currentTime = nodeTimeList[i - 1];
 					}
 				}
+
+				mainRows = motionDataSet.Tables["[MAIN$]"].Rows.Count;
+
 				for(int j = row_number; j < motionDataSet.Tables["[MAIN$]"].Rows.Count; j++){
+
+					Debug.Log("MainEntrance:"+ i+ ","+ j);
 
 					rowNum = (j + 2).ToString();
 					//生成装配表位置
@@ -809,7 +857,7 @@ public class MotionManager : MonoBehaviour {
 					//检查到有空行停止运行
 					bool isRowBlank = false;
 					//先解决CAMERA问题，考过程不触发
-					if(FuncPara.currentMotion != MotionState.Examining){
+					if(FuncPara.currentMotion == MotionState.Teaching){
 						string cameStr = (string)motionDataSet.Tables["[MAIN$]"].Rows[j][2].ToString();
 						if(cameStr != ""){
 							isRowBlank = isRowBlank || true;
@@ -865,7 +913,8 @@ public class MotionManager : MonoBehaviour {
 						yield return StartCoroutine(GeneralCoroutine(motionStr, motionDataSet.Tables["[CAMERA$]"], 
 							motionDataSet.Tables["[EXCEL$]"], motionDataSet.Tables["[3DMAX$]"], 
 							motionDataSet.Tables["[Group$]"], motionDataSet.Tables["[TIPS$]"],
-							motionDataSet.Tables["[PROGRAM$]"]));
+							motionDataSet.Tables["[PROGRAM$]"], motionDataSet.Tables["[XIAN$]"],
+						    motionDataSet.Tables["[CURSORMOVE$]"]));
 					}else{
 						isRowBlank = isRowBlank || false;
 					}
@@ -1264,7 +1313,7 @@ public class MotionManager : MonoBehaviour {
 				if(cameRowData == null){
 					MotionPara.shouldStop = stopInRow;
 					if(MotionPara.isEditor){
-						Debug.LogError("CURSORMOVE没有这个ID--"+cameKeyStr);
+						Debug.LogError(ErrorLocation.Locate("MAIN", "CURSORMOVE", MotionPara.mainRowNumber) + ", CURSORMOVE 没有这个ID!");
 					}
 					continue;
 				}
@@ -1289,9 +1338,9 @@ public class MotionManager : MonoBehaviour {
 					//1.先判断目标位置是否是按键
 					if(cursormoveAdministrator.isButton){
 						//单击
-						if(!PanelButton.btnType[cameRowData[3].ToString()]){
+						if(cursormoveAdministrator.Step_LongPress == -1f){
 							TriggerManager.GUIButtonEvent(cameRowData[11].ToString());//单击响应
-							PanelButton.Btn_Function(cameRowData[11].ToString());
+							panelButton.Btn_Function(cameRowData[11].ToString());
 							
 							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
 						}
@@ -1306,7 +1355,7 @@ public class MotionManager : MonoBehaviour {
 					else{
 						//点击
 						if(cursormoveAdministrator.Step_LongPress == -1f){
-							PanelButton.Btn_Function(cameRowData[11].ToString());
+							panelButton.Btn_Function(cameRowData[11].ToString());
 							
 							FuncPara.cursorShow = !cursormoveAdministrator.Disappear;
 						}
@@ -1363,10 +1412,10 @@ public class MotionManager : MonoBehaviour {
 	private IEnumerator CursorLongPressTimer(string btn_name, float step_LongPress)
 	{
 
-		while(!PanelButton.DetectionLongPress(btn_name, step_LongPress))
+		while(!panelButton.DetectionLongPress(btn_name, step_LongPress))
 		{
 			TriggerManager.GUIButtonEvent(btn_name);//单击响应
-			PanelButton.Btn_Function(btn_name);
+			panelButton.Btn_Function(btn_name);
 			yield return new WaitForSeconds(0.01f);
 		}
 	}
@@ -1484,15 +1533,22 @@ public class MotionManager : MonoBehaviour {
     {
         while (MotionPara.triggerPlay)
         {
+//			Debug.Log("TriggerTimer"+ MotionPara.triggerPlay);
             yield return new WaitForSeconds(0.02f);
         }
         st_Trigger.gameObject.SetActive(false);
 		BtnFunction.AllForbit();
+
+		//练
+		if(FuncPara.currentMotion == MotionState.Examining){
+			Debug.Log("ExamClass.Scoring:"+tableNum+","+rowNum);
+			ExamClass.Scoring("ID_C"+tableNum+"_"+rowNum);
+		}
     }
 
 	//综合运动模块
 	private IEnumerator GeneralCoroutine(string motion_str, DataTable camera_table, DataTable excel_table, 
-		DataTable max_table, DataTable group_table, DataTable tips_table, DataTable program_table)
+	                                     DataTable max_table, DataTable group_table, DataTable tips_table, DataTable program_table, DataTable dolabel_table, DataTable coursormove_table)
 	{
 		string[] generalArray = motion_str.Split('|');
         float motions_Time = 0f;
@@ -1501,7 +1557,7 @@ public class MotionManager : MonoBehaviour {
 			string motionTypeStr = "";
 			//提取当前运动类型
 			motionTypeStr = InterData.CmdCheck(generalArray[i], 
-				new string[] {"CAMERA", "TIPS", "EXCEL", "3DMAX", "PROGRAM"}, ref generKeyStr);
+				new string[] {"CAMERA", "TIPS", "EXCEL", "3DMAX", "PROGRAM", "XIAN", "CURSORMOVE"}, ref generKeyStr);
 			if(motionTypeStr == ""){
 				MotionPara.shouldStop = stopInRow;
 				//编辑器模式下会出现警报信息
@@ -1601,7 +1657,51 @@ public class MotionManager : MonoBehaviour {
 					MotionPara.shouldStop = stopInRow;
 					yield break;
 				}
-			//意外的情况，不应该出现
+			//引出线
+			}else if(motionTypeStr == "XIAN"){
+				//PROGRAM表格信息提取
+				DataRow programRowData = dolabel_table.Rows.Find(generKeyStr);
+				//ID获取PROGRAM行失败
+				if(programRowData == null){
+					MotionPara.shouldStop = stopInRow;
+					if(MotionPara.isEditor){
+						Debug.LogError(ErrorLocation.Locate("MAIN", "MOTION", MotionPara.mainRowNumber) + 
+						               "，" + generalArray[i] + "：XIAN表没有这个ID!");
+					}
+					continue;
+				}
+
+				//只在教的时候出现
+				if(FuncPara.currentMotion == MotionState.Teaching){
+					//如果PROGRAM表参数有误，则退出当前函数
+					if(!motionAdministrator.DoLabelsAdd(programRowData, generKeyStr, group_table)){
+						MotionPara.shouldStop = stopInRow;
+						yield break;
+					}
+				}
+				//鼠标贴图运动
+			}else if(motionTypeStr == "CURSORMOVE"){
+				//PROGRAM表格信息提取
+				DataRow programRowData = coursormove_table.Rows.Find(generKeyStr);
+				//ID获取PROGRAM行失败
+				if(programRowData == null){
+					MotionPara.shouldStop = stopInRow;
+					if(MotionPara.isEditor){
+						Debug.LogError(ErrorLocation.Locate("MAIN", "MOTION", MotionPara.mainRowNumber) + 
+						               "，" + generalArray[i] + "：CURSORMOVE表没有这个ID!");
+					}
+					continue;
+				}
+
+				//只在教的时候出现
+				if(FuncPara.currentMotion == MotionState.Teaching){
+					//如果PROGRAM表参数有误，则退出当前函数
+					if(!motionAdministrator.CURSORMOVEAdd(programRowData, generKeyStr, group_table)){
+						MotionPara.shouldStop = stopInRow;
+						yield break;
+					}
+				}
+				//意外的情况，不应该出现
 			}else{
 				MotionPara.shouldStop = stopInRow;
 				//编辑器模式下会出现警报信息
@@ -1615,10 +1715,31 @@ public class MotionManager : MonoBehaviour {
 		//有运动
 		if(motionAdministrator.Count > 0){
 			motionAdministrator.Init();
+
+			//是否有顺序播放的引出线语音
+			bool voiceDoLabel = false;
+
+			//引出线显示是否播放语音
+			for(int i = 0; i < motionAdministrator._motionList.Count; i++){
+			
+				if(motionAdministrator._motionList[i].GetType().ToString() == "DoLabelMotion"){
+					DoLabelMotion doLabelMotion = (DoLabelMotion)motionAdministrator._motionList[i];
+
+					if(!doLabelMotion.showType){
+
+						voiceDoLabel = true;
+					}
+				}
+			}
+
 			//有TipsMotion的情况
 			if (motionAdministrator.HasTipsMotion != null && !computeTime)
 			{
-				st_Interface.Voice(motionAdministrator.HasTipsMotion.TipsString, tipsAdministrator.TipsSpeed);
+				//如果有引出线语音，则tips语音不播放
+				if(!voiceDoLabel){
+					st_Interface.Voice(motionAdministrator.HasTipsMotion.TipsString, tipsAdministrator.TipsSpeed);
+				}
+
 				if (motionAdministrator.HasTipsMotion.IsString)
 				{
 					if (motionAdministrator.HasTipsMotion.IsTitle)
@@ -1640,11 +1761,17 @@ public class MotionManager : MonoBehaviour {
 							motionAdministrator.HasTipsMotion.IsMoveable, motionAdministrator.HasTipsMotion.PosVec2);
 				}
 			}
+
+
 			if (!computeTime)
 			{
 				startTime = 0;
 				MotionPara.MotionActive = true;
 				generMotionFlag = true;
+
+				//引出线显示
+				StartCoroutine(ShowDoLabel());
+
 				yield return StartCoroutine(GeneralTimer());
 			}
 			else
@@ -1683,7 +1810,7 @@ public class MotionManager : MonoBehaviour {
 								string tmp_start_pos = tmp_content[5];
 								string tmp_target_pos = tmp_content[6];
 								if(tmp_start_pos == ""){//初始位置为空
-									if(tmp_content[4] == ""){//参考物体为空
+			 						if(tmp_content[4] == ""){//参考物体为空
 										Vector3 vec3 = GameObject.Find(tmp_content[2]).transform.position;
 										tmp_content[6] = (vec3.x+","+vec3.y+","+vec3.z);
 									}else{
@@ -1932,6 +2059,33 @@ public class MotionManager : MonoBehaviour {
 		}
 	}
 
+	//引出线顺序显示
+	private IEnumerator ShowDoLabel()
+	{
+		for(int i = 0; i < motionAdministrator._motionList.Count; i++){
+			
+			if(motionAdministrator._motionList[i].GetType().ToString() == "DoLabelMotion"){
+				DoLabelMotion doLabelMotion = (DoLabelMotion)motionAdministrator._motionList[i];
+				
+				if(!doLabelMotion.showType){
+					
+					for(doLabelMotion.labelCount=0; doLabelMotion.labelCount < DoLabelMotion.Label_obj2.Count; doLabelMotion.labelCount++){
+						DoLabelMotion.Label_layer.Add(DoLabelMotion.Label_layer2[doLabelMotion.labelCount]);
+						DoLabelMotion.Label_obj.Add(DoLabelMotion.Label_obj2[doLabelMotion.labelCount]);
+						DoLabelMotion.Label_name.Add(DoLabelMotion.Label_name2[doLabelMotion.labelCount]);
+						DoLabelMotion.Label_pos.Add(DoLabelMotion.Label_pos2[doLabelMotion.labelCount]);
+						
+						st_Interface.Voice(DoLabelMotion.Label_name[doLabelMotion.labelCount], tipsAdministrator.TipsSpeed);
+						
+						//等待语音时间
+						TipsInfoManager ti = new TipsInfoManager();
+						yield return new WaitForSeconds( ti.GetPlayTime(DoLabelMotion.Label_name[doLabelMotion.labelCount]));
+					}
+				}
+			}
+		}
+	}
+
 	//综合运动控制器
 	private IEnumerator GeneralTimer()
 	{
@@ -1943,6 +2097,9 @@ public class MotionManager : MonoBehaviour {
 		generMotionFlag = false;
 
 		MotionPara.MotionActive = false;
+
+		//WuHao : 引出线消失
+		FuncPara.outlineOn = false;
 	}
 
 	/// <summary>
@@ -2196,6 +2353,9 @@ public class MotionManager : MonoBehaviour {
 //					jo.JsonDelete(file_path, sheet_name);
 //				}
 
-
+//		if(Input.GetKeyDown(KeyCode.P)){
+//			Debug.Log("FuncPara.outlineOn:"+ FuncPara.outlineOn);
+//			Debug.Log("Label_obj length:"+ DoLabelMotion.Label_obj.Count);
+//		}
 	}
 }

@@ -298,8 +298,8 @@ public class TriggerManager : MonoBehaviour {
 						}
 						else{//长按
 							Vector3 dis = (GameObject.Find("Cube_2").transform.position-GameObject.Find("Cube_1").transform.position);
-							Debug.Log("dis:"+dis.magnitude);
-							if(PanelButton.DetectionLongPress(btn_string, triggerUnitList[0].TriggerLongPress)){
+//							Debug.Log("dis:"+dis.magnitude);
+							if(GameObject.Find("MainScript").GetComponent<PanelButton>().DetectionLongPress(btn_string, triggerUnitList[0].TriggerLongPress)){
 								MotionPara.triggerPlay = false;
 							}
 						}

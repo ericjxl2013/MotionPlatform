@@ -94,6 +94,8 @@ public class MotionEditor : MonoBehaviour {
 	public string[] path_Name;
 
 	bool isControl;
+
+	public static bool jumpToXian;
 	
 	void Start () {
 		ExcelWriteWindow = new Rect(100,100,1000,600);
@@ -102,7 +104,7 @@ public class MotionEditor : MonoBehaviour {
 		show = false;
 
 		selectSheet = -1;
-		SheetNames = new string[] {"MAIN", "CAMERA", "TIPS", "CURSORMOVE", "EXCEL", "3DMAX", "PROGRAM", "TRIGGER", "Group"};
+		SheetNames = new string[] {"MAIN", "CAMERA", "TIPS", "CURSORMOVE", "EXCEL", "3DMAX", "PROGRAM", "XIAN", "TRIGGER", "Group"};
 
 		key = 0;
 		filepath = UnityEngine.Application.dataPath + "/Resources/" + MotionPara.taskName + "/C/" + "C1";
@@ -153,6 +155,9 @@ public class MotionEditor : MonoBehaviour {
 		}
 		else if(sheetname == "CURSORMOVE"){
 			columnName = new string[]{"描述", "ID", "开始位置:2", "结束位置:3", "直线运动速度:4", "旋转中心位置:5", "旋转方向是否为顺时针:6", "旋转速度:7", "旋转角度:8", "鼠标长按的结束条件:9", "运动结束后贴图是否消失:10", "鼠标触发:11"};
+		}
+		else if(sheetname == "XIAN"){
+			columnName = new string[]{"描述", "ID", "物体名所在sheet名(在XIAN.json中):2", "显示时间:3", "显示方式:4(true:引出线同时显示;false:顺序显示)"};
 		}
 		else if(sheetname == "EXCEL"){
 			columnName = new string[]{"描述", "ID", "运动物体的组号", "运动类型", "加速移动的最终速度", "移动初始速度", "移动向量", "旋转轴", "加速旋转的最终速度", "旋转初始速度", "旋转角度", "参考物体", "相对坐标", "相对角度"};
@@ -286,7 +291,7 @@ public class MotionEditor : MonoBehaviour {
 		}
 
 		//空行提醒
-		nullColumns = GUI.TextField(new Rect(10 + SheetNames.Length * 80 ,20, btn_width*2, btn_height), nullColumns);
+		nullColumns = GUI.TextField(new Rect(10 + SheetNames.Length * 80 ,20, btn_width*1.3f, btn_height), nullColumns);
 
 		//滚动区域
 		sheet_width = (10+ sheet_columns* btn_width+ btn_width) - ExcelWriteWindow.width;
@@ -303,7 +308,7 @@ public class MotionEditor : MonoBehaviour {
 				sheet_height = sheet_height_2;
 			}
 			if(addMain2){
-				float sheet_height_3 = (60+ addMainRow* btn_height+ 9*btn_height+ 30) - ExcelWriteWindow.height;
+				float sheet_height_3 = (60+ addMainRow* btn_height+ 10*btn_height+ 30) - ExcelWriteWindow.height;
 				if(sheet_height_3 > sheet_height){
 					sheet_height = sheet_height_3;
 				}
@@ -418,6 +423,17 @@ public class MotionEditor : MonoBehaviour {
 				}
 				if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ 2*btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (7+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"PROGRAM")){
 					addAction("PROGRAM", 5, addMainRow);
+					addMain1 = false;
+					addMain2 = false;
+				}
+
+				if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ 2*btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (8+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"XIAN")){
+					addAction("XIAN", 5, addMainRow);
+					addMain1 = false;
+					addMain2 = false;
+				}
+				if(GUI.Button(new Rect(10 + btn_width*sheet_columns+ 2*btn_width- (sheet_width)*hSbarValue/8f, 60+ btn_height+ btn_height* (9+addMainRow)- (sheet_height)*vSbarValue/8f, btn_width, btn_height),"CURSORMOVE")){
+					addAction("CURSORMOVE", 5, addMainRow);
 					addMain1 = false;
 					addMain2 = false;
 				}
@@ -600,6 +616,12 @@ public class MotionEditor : MonoBehaviour {
 			else if(actionName == "PROGRAM"){
 				selectSheet = 6;
 			}
+			else if(actionName == "XIAN"){
+				selectSheet = 7;
+			}
+			else if(actionName == "CURSORMOVE"){
+				selectSheet = 3;
+			}
 		}
 		else if(column == 6 && actionName == "TRIGGER"){
 			//添加数据
@@ -637,8 +659,8 @@ public class MotionEditor : MonoBehaviour {
 				updateData(filepath, SheetNames[selectSheet], tmp_TextFields);
 			}
 			
-			//跳转表格
-			selectSheet = 7;
+			//跳转表格 Trigger
+			selectSheet = 8;
 		}
 		
 		getSheetData(filepath, SheetNames[selectSheet]);
@@ -676,18 +698,18 @@ public class MotionEditor : MonoBehaviour {
 
 		Debug.Log("getInputString:"+focusControl);
 
-		if(focusControl.Contains(",")){
+
+		if(focusControl.Contains(",") && show){
 			string[] tmp_ctl = focusControl.Split(',');
 			int result1 = 0, result2 = 0;
 			if(int.TryParse(tmp_ctl[0], out result1) && int.TryParse(tmp_ctl[1], out result2)){
 				contents[result1 , result2] = str;
 			}
 		}
-		else{
+		else if(!focusControl.Contains(",") && showAddWindow){
 			if(int.TryParse(focusControl, out result)){
 				tmp_TextFields[result] = str;
 			}
-
 		}
 	}
 
@@ -723,6 +745,12 @@ public class MotionEditor : MonoBehaviour {
 				addData(filepath, SheetNames[selectSheet], tmp_content);
 			}
 		}
+	}
+
+	public void xianBack(string str){
+		tmp_TextFields[2] = str;
+
+		jumpToXian = false;
 	}
 
 	//添加数据的窗口
@@ -1096,6 +1124,109 @@ public class MotionEditor : MonoBehaviour {
 				}
 			}
 		}
+		else if(SheetNames[selectSheet] == "XIAN"){
+			//更新
+			if(!showAddSelection){
+				tmp_TextFields = new string[sheet_columns];
+				selectToggles = new bool[sheet_columns];
+				showAddSelection = true;
+				for(int i=0; i<sheet_columns; i++){
+					tmp_TextFields[i] = "";
+					selectToggles[i] = true;
+				}
+				//自动化生成数据:ID,摄像机
+				tmp_TextFields[key] = (sheet_rows+2).ToString();
+				//自动化生成数据
+				
+				add_hSbarValue = 0f;
+				add_sheet_width = (10+ (sheet_columns)* btn_width+ btn_width) - ExcelAddWindow.width;
+				
+				add_i = 0;
+			}
+			
+			
+			//滑动条
+			bool hor = (add_sheet_width < 0);
+			if(!hor){
+				GUI.depth = 0;
+				add_hSbarValue = GUI.HorizontalScrollbar(new Rect(10, ExcelAddWindow.height-20, ExcelAddWindow.width-20, 30), add_hSbarValue, 1.0F, 0.0F, 10.0F);
+				GUI.depth = 1;
+			}
+			
+			//列名,数据
+			for(int i=0,j = 0; j < sheet_columns; j++){
+				if(selectToggles[j]){
+					columnName[j] = GUI.TextField(new Rect(10+ btn_width*i- (add_sheet_width)*add_hSbarValue/8f, 60, btn_width, btn_height), columnName[j]);
+					
+					GUI.SetNextControlName(j.ToString());
+					tmp_TextFields[j] = GUI.TextField(new Rect(10+ btn_width*i- (add_sheet_width)*add_hSbarValue/8f, 60+ btn_height, btn_width, btn_height), tmp_TextFields[j]);
+					i++;
+				}
+			}
+			if(GUI.Button(new Rect(10+ btn_width*sheet_columns- (add_sheet_width)*add_hSbarValue/8f, 60+ btn_height, btn_width, btn_height),"添加")){
+				addData(filepath, SheetNames[selectSheet], tmp_TextFields);
+				
+				showAddWindow = false;
+				showAddSelection = false;
+				old_selectCategory = 0;
+			}
+			
+			//添加数据
+			bool isNecessary = false;
+			isNecessary = (add_i==0 || add_i==1 || add_i==2 || add_i==3 || add_i==4);
+			if(selectToggles[add_i]){
+				if(isNecessary){
+					GUI.color = Color.green;
+				}
+				columnName[add_i] = GUI.TextField(new Rect(10- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, 2*btn_width, btn_height), columnName[add_i]);
+				GUI.SetNextControlName(add_i.ToString());
+				tmp_TextFields[add_i] = GUI.TextField(new Rect(10+ 2*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, btn_width, btn_height), tmp_TextFields[add_i]);
+				if(isNecessary){
+					GUI.color = Color.white;
+				}
+			}else{
+				if(add_i == (sheet_columns-1)){
+					addData(filepath, SheetNames[selectSheet], tmp_TextFields);
+					
+					showAddWindow = false;
+					showAddSelection = false;
+					old_selectCategory = 0;
+				}else{
+					add_i++;
+				}
+			}
+			if(GUI.Button(new Rect(10+ 3*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, btn_width, btn_height),"确认")){
+				if(add_i < (sheet_columns-1)){
+					add_i++;
+				}
+				else{
+					addData(filepath, SheetNames[selectSheet], tmp_TextFields);
+					
+					showAddWindow = false;
+					showAddSelection = false;
+					old_selectCategory = 0;
+				}
+			}
+
+			//引出线xinxi
+			if(add_i == 2){
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, btn_width*2, btn_height),"创建新引出线")){
+					XianEditor.show = true;
+					GameObject.Find("MainScript").GetComponent<XianEditor>().selectWindow = 1;
+
+					jumpToXian = true;
+				}
+			}
+
+			if(add_i == 4){
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 3*btn_height, btn_width*2, btn_height),"true--是")){
+					tmp_TextFields[add_i] = "true";
+				}
+				if(GUI.Button(new Rect(10+ 4*btn_width- (add_sheet_width)*add_hSbarValue/8f, 60+ 4*btn_height, btn_width*2, btn_height),"false--否")){
+					tmp_TextFields[add_i] = "false";
+				}
+			}
+		}
 		else if(SheetNames[selectSheet] == "EXCEL"){
 			old_selectCategory = selectCategory;
 			selectCategory = GUI.Toolbar(new Rect(10, 20, SheetNames.Length * 80, 30), selectCategory, excelCategory);
@@ -1285,7 +1416,7 @@ public class MotionEditor : MonoBehaviour {
 							tmpExcelSelect = selectCategory;
 
 							//跳转Group表
-							selectSheet = 8;
+							selectSheet = 9;
 							getSheetData(filepath, SheetNames[selectSheet]);
 							showAddWindow = true;
 							old_selectCategory = 0;
@@ -1594,7 +1725,7 @@ public class MotionEditor : MonoBehaviour {
 							tmpProgramSelect = selectCategory;
 							
 							//跳转Group表
-							selectSheet = 8;
+							selectSheet = 9;
 							getSheetData(filepath, SheetNames[selectSheet]);
 							showAddWindow = true;
 							old_selectCategory = 0;
@@ -1905,6 +2036,7 @@ public class MotionEditor : MonoBehaviour {
 	}
 
 	void OnGUI(){
+		GUI.skin = FuncPara.defaultSkin;
 		if(show){
 			ExcelWriteWindow = GUI.Window(501, ExcelWriteWindow, drawWindow, "Excel读写");
 		}
@@ -1916,6 +2048,7 @@ public class MotionEditor : MonoBehaviour {
 		//当前获得焦点的控件
 		focusControl = GUI.GetNameOfFocusedControl();
 
+		GUI.skin = null;
 
 		//Ctrl
 		if(Input.GetKey(KeyCode.LeftControl)){
@@ -1949,17 +2082,6 @@ public class MotionEditor : MonoBehaviour {
 	}
 
 	void Update () {
-		if(Input.GetKeyDown(KeyCode.F1)){
-			show = true;
-		}
-
-		//if(Input.GetKeyDown(KeyCode.T)){
-		//	Debug.Log("T");
-		//	setExcel(UnityEngine.Application.dataPath + "/Resources/"+"3_33"+"/C/"+"C1");
-		//}
-		//if(Input.GetKeyDown(KeyCode.Y)){
-		//	Debug.Log("Y");
-		//	setExcel(UnityEngine.Application.dataPath + "/Resources/"+"3_33"+"/C/"+"C2");
-		//}
+		
 	}
 }
